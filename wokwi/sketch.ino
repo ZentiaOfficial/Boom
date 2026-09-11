@@ -25,6 +25,8 @@ HX711 scale;
 
 const uint8_t buttonPins[] = {PIN_BTN_N, PIN_BTN_P, PIN_BTN_K, PIN_BTN_START, PIN_BTN_OUT};
 const char *buttonNames[] = {"N", "P", "K", "START", "OUT"};
+// PCA9685 channel for each button, or -1 for buttons with no servo (START).
+const int8_t buttonServoChannel[] = {0, 1, 2, -1, 3};
 
 void setup() {
   Serial.begin(115200);
@@ -54,8 +56,8 @@ void loop() {
   for (uint8_t i = 0; i < 5; i++) {
     if (digitalRead(buttonPins[i]) == LOW) {
       Serial.printf("Button %s pressed\n", buttonNames[i]);
-      if (i < 4) {
-        pca.setPWM(i, 0, angleToPulse(90)); // channels 0-3 = N/P/K/OUT servos
+      if (buttonServoChannel[i] >= 0) {
+        pca.setPWM(buttonServoChannel[i], 0, angleToPulse(90));
       }
     }
   }
