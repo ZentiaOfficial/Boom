@@ -4,9 +4,36 @@
 
 ## เปิดใช้งาน
 
+### ทาง wokwi.com (ง่ายสุด — ไม่ต้องติดตั้งอะไร)
+
 1. ไปที่ [wokwi.com/projects/new/esp32](https://wokwi.com/projects/new/esp32) สร้างโปรเจกต์เปล่า
 2. ก็อปไฟล์ทั้งหมดในโฟลเดอร์นี้ (`diagram.json`, `sketch.ino`, `libraries.txt`, `pca9685.chip.c`, `pca9685.chip.json`, `wokwi-api.h`) เข้าไปแทนที่ไฟล์เดิมของโปรเจกต์ — วาง chip files ไว้ที่ root ของโปรเจกต์ (ห้ามใส่ในโฟลเดอร์ย่อย) เพราะ Wokwi หา custom chip จากชื่อไฟล์ `*.chip.c` / `*.chip.json` ที่ root เท่านั้น
 3. กด ▶️ Start Simulation — Wokwi จะคอมไพล์ custom chip (PCA9685) และ sketch.ino ให้อัตโนมัติในคลาวด์ ไม่ต้องติดตั้ง toolchain เอง
+
+### ทาง VS Code + Wokwi extension (ต้อง build chip เอง — สำคัญ)
+
+VS Code extension **ไม่คอมไพล์ `pca9685.chip.c` ให้อัตโนมัติแบบ wokwi.com** ถ้าไม่ build ก่อน ตัว PCA9685 ในไดอะแกรมจะขึ้น **"Missing chip"** และกดปุ่มแล้ว servo จะไม่ขยับเลย (เพราะไม่มีชิปฟังสัญญาณ I²C อยู่จริง)
+
+ต้อง build `pca9685.chip.c` เป็น `dist/chip.wasm` เองครั้งเดียวก่อน:
+
+1. ติดตั้ง [WASI SDK](https://github.com/WebAssembly/wasi-sdk/releases) (macOS arm64 ใช้ไฟล์ `wasi-sdk-*-arm64-macos.tar.gz`) แตกไฟล์ไว้ที่ไหนก็ได้
+2. รันคำสั่งนี้จาก root ของโปรเจกต์ (แทน `<WASI_SDK>` ด้วย path ที่แตกไฟล์ไว้):
+   ```sh
+   mkdir -p dist
+   <WASI_SDK>/bin/wasm32-wasip1-clang \
+     -nostartfiles -Wl,--import-memory -Wl,--export-table -Wl,--no-entry -Werror \
+     -I . -o dist/chip.wasm pca9685.chip.c
+   cp pca9685.chip.json dist/chip.json
+   ```
+3. เพิ่มบล็อกนี้ใน `wokwi.toml`:
+   ```toml
+   [[chip]]
+   name = 'pca9685'
+   binary = 'dist/chip.wasm'
+   ```
+4. กด Start Simulation ใหม่ — "Missing chip" ควรหายและกดปุ่มแล้ว servo ขยับได้จริง
+
+`dist/` เป็นไฟล์ build ที่ generate ได้ใหม่เสมอจาก `pca9685.chip.c` จึงไม่ต้อง commit เข้า git (อยู่ใน `.gitignore` อยู่แล้วผ่านกฎ `dist/`)
 
 ## สิ่งที่จำลองตรงกับของจริง (1:1 ตาม wiring-data.js)
 
