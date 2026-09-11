@@ -59,11 +59,11 @@
     ["pca:A5", "pca:VSS", "black", []],
 
     ["esp:23", "btn_out:1.l", "red", []],
-    ["btn_out:2.l", "pca:VSS", "black", ["h40", "*"]],
+    ["btn_out:2.l", "servo_n:GND", "black", ["h40", "*", "v-40"]],
     ["esp:18", "btn_start:1.l", "blue", []],
-    ["btn_start:2.l", "pca:VSS", "black", ["h40", "*", "v-200"]],
+    ["btn_start:2.l", "servo_k:GND", "black", ["h40", "*", "v-40"]],
     ["esp:5", "btn_k:1.l", "green", []],
-    ["btn_k:2.l", "pca:VSS", "black", ["h40", "*", "v-280"]],
+    ["btn_k:2.l", "servo_out:GND", "black", ["h40", "*", "v-40"]],
 
     ["pca:LED0", "servo_n:PWM", "orange", []],
     ["pca:LED1", "servo_p:PWM", "orange", []],
