@@ -52,23 +52,23 @@ export function createScene(host, onSelect, onPanelAction) {
   const doorPivot=new THREE.Group();doorPivot.position.set(-2,0,1.04);model.add(doorPivot);
   box(4,5.65,.10,2,2.85,0,green,doorPivot,'panel');
   box(3.7,5.35,.04,2,2.85,-.073,cream,doorPivot);
-  box(2.3,1.04,.18,2,3.91,-.16,dark,doorPivot,'panel');
-  box(.75,.6,.04,2,3.91,-.265,pcb,doorPivot,'panel');
+  box(2.05,1.58,.18,2,3.91,-.16,dark,doorPivot,'panel');
+  box(.50,.16,.04,2,4.61,-.265,pcb,doorPivot,'panel');
   for(const x of [1.2,2,2.8])cyl(.11,.11,.25,x,2.7,-.22,dark,doorPivot,'panel').rotation.x=Math.PI/2;
   line([[2,3.9,-.28],[2.55,3.7,-.22],[2.55,2.4,-.20],[1.1,2.4,-.19],[.12,1.9,-.17]],'#687365',doorPivot,.035);
   box(.12,.58,.12,3.7,2.5,.11,silver,doorPivot,'panel');
   for(const y of [1,4.8])cyl(.1,.1,.44,0,y,0,silver,doorPivot);
   const brand=label('VERDANT',1.5,.30,'#4e685b');brand.position.set(2,5,.061);doorPivot.add(brand);
-  box(2.7,1.45,.16,2,3.91,.1,dark,doorPivot,'panel');
-  const lcd=document.createElement('canvas');lcd.width=768;lcd.height=400;const lcdctx=lcd.getContext('2d');const lcdtex=new THREE.CanvasTexture(lcd);lcdtex.colorSpace=THREE.SRGBColorSpace;
-  const lcdMesh=mesh(new THREE.PlaneGeometry(2.4,1.18),new THREE.MeshBasicMaterial({map:lcdtex}),2,3.91,.19,doorPivot,'panel');
+  box(2.20,1.73,.16,2,3.91,.1,dark,doorPivot,'panel');
+  const lcd=document.createElement('canvas');lcd.width=768;lcd.height=576;const lcdctx=lcd.getContext('2d');const lcdtex=new THREE.CanvasTexture(lcd);lcdtex.colorSpace=THREE.SRGBColorSpace;
+  mesh(new THREE.PlaneGeometry(1.94,1.46),new THREE.MeshBasicMaterial({map:lcdtex}),2,3.91,.19,doorPivot,'panel');
   const panelButtons=[];
   function panelButton(x,y,color,action){const m=cyl(.16,.16,.14,x,y,.16,mat(color,.25,.35),doorPivot,'panel');m.rotation.x=Math.PI/2;m.userData.action=action;panelButtons.push(m);const ring=cyl(.20,.20,.04,x,y,.095,silver,doorPivot);ring.rotation.x=Math.PI/2;}
   panelButton(1.2,2.7,'#6d9d74','recipe0');panelButton(2,2.7,'#d9b265','recipe1');panelButton(2.8,2.7,'#6f98b7','recipe2');
   panelButton(1.2,1.85,'#72a76a','start');panelButton(2,1.85,'#79838a','discharge');
   const ering=cyl(.3,.3,.06,2.85,1.85,.1,mat('#e5b834'),doorPivot);ering.rotation.x=Math.PI/2;
   panelButton(2.85,1.85,'#c64233','emergency');panelButtons.at(-1).scale.set(1.35,1.35,1.35);
-  const noTouch=label('PHYSICAL CONTROLS',2.2,.15,'#4e685b','#cbd9c9');noTouch.position.set(2,1.2,.06);doorPivot.add(noTouch);
+  const noTouch=label('TOUCH HMI + PHYSICAL E-STOP',2.5,.15,'#4e685b','#cbd9c9');noTouch.position.set(2,1.2,.06);doorPivot.add(noTouch);
   const tankGroup=new THREE.Group();model.add(tankGroup);
   const tankColors=['#8aa77b','#d0a765','#7e9eaf']; const valves=[]; const hopperCenters=[];
   for(let i=0;i<3;i++){
@@ -154,13 +154,15 @@ export function createScene(host, onSelect, onPanelAction) {
     else if(hit.object.userData.id)onSelect(hit.object.userData.id);
   });
   function updatePanel(s){const key=[s.phase,s.weight.toFixed(2),s.batch,s.recipe.ratio.join(':')].join('|');if(key===lastPanel)return;lastPanel=key;
-    lcdctx.fillStyle=s.phase==='emergency'?'#492622':'#102e25';lcdctx.fillRect(0,0,768,400);
-    lcdctx.fillStyle='#b7d6a7';lcdctx.font='24px Manrope';lcdctx.fillText('VERDANT  /  MIX CONTROL',35,48);
-    lcdctx.fillStyle='#f4f5cf';lcdctx.font='bold 60px Manrope';lcdctx.fillText(s.recipe.ratio.join(' : '),35,128);
-    lcdctx.font='22px Manrope';lcdctx.fillText(['N','P','K'].map((name,i)=>name+' '+s.targets[i].toFixed(3)+' kg').join('    '),38,169);
-    lcdctx.fillStyle='#92ab89';lcdctx.fillRect(35,197,695,2);
-    lcdctx.font='64px Manrope';lcdctx.fillStyle='#edf4df';lcdctx.fillText(s.weight.toFixed(3)+' kg',35,279);
-    lcdctx.font='23px Manrope';lcdctx.fillStyle=s.phase==='emergency'?'#ffaf9c':'#b7d6a7';lcdctx.fillText(s.phase.toUpperCase()+'  /  SIMULATION',35,356);lcdtex.needsUpdate=true;
+    lcdctx.fillStyle=s.phase==='emergency'?'#492622':'#102e25';lcdctx.fillRect(0,0,768,576);
+    lcdctx.fillStyle='#b7d6a7';lcdctx.font='24px Manrope';lcdctx.fillText('ESP32 HMI  /  MIX CONTROL',35,48);
+    lcdctx.fillStyle='#f4f5cf';lcdctx.font='bold 62px Manrope';lcdctx.fillText(s.recipe.ratio.join(' : '),35,132);
+    lcdctx.font='22px Manrope';lcdctx.fillText(['N','P','K'].map((name,i)=>name+' '+s.targets[i].toFixed(3)+' kg').join('    '),38,174);
+    lcdctx.fillStyle='#92ab89';lcdctx.fillRect(35,204,695,2);
+    lcdctx.font='72px Manrope';lcdctx.fillStyle='#edf4df';lcdctx.fillText(s.weight.toFixed(3)+' kg',35,302);
+    const touchLabels=['สูตร','สถานะ','น้ำหนัก'];
+    touchLabels.forEach((text,i)=>{lcdctx.fillStyle=i===1?'#678b72':'#284b40';lcdctx.fillRect(35+i*225,350,200,70);lcdctx.fillStyle='#edf4df';lcdctx.font='25px IBM Plex Sans Thai';lcdctx.fillText(text,72+i*225,394);});
+    lcdctx.font='24px Manrope';lcdctx.fillStyle=s.phase==='emergency'?'#ffaf9c':'#b7d6a7';lcdctx.fillText(s.phase.toUpperCase()+'  /  UART ONLINE',35,518);lcdtex.needsUpdate=true;
   }
   function render(dt,s){if(!host.clientWidth)return;lastState=s;controls.autoRotate=autoRotate;controls.autoRotateSpeed=.7;controls.update();
     const ease=1-Math.exp(-dt*7);

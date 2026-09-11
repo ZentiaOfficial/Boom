@@ -20,10 +20,10 @@ export function createWiringScene(host,onSelect,onBoard){
  for(let y=-10;y<=9;y++){const geo=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-13.5,y,-.205),new THREE.Vector3(15.5,y,-.205)]);scene.add(new THREE.Line(geo,new THREE.LineBasicMaterial({color:'#cbd8c4',transparent:true,opacity:.5})));}
  boards.forEach(b=>{
    const group=new THREE.Group();group.position.set(b.x,b.y,0);pcbGroup.add(group);boardMeshes.set(b.id,group);
-   const color=b.kind==='esp'?'#254b3b':b.kind==='boundary'?'#a97162':['power','cell','motor'].includes(b.kind)?'#73877d':b.kind==='servo'?'#416e83':b.kind==='stop'?'#a24c44':b.kind==='ic'?'#343f38':'#4c6f57';
+   const color=b.kind==='esp'?'#254b3b':b.kind==='hmi'?'#315a66':b.kind==='boundary'?'#a97162':['power','cell','motor'].includes(b.kind)?'#73877d':b.kind==='servo'?'#416e83':b.kind==='stop'?'#a24c44':b.kind==='ic'?'#343f38':'#4c6f57';
    const body=cube(b.w,b.h,.19,0,0,0,mat(color),group);body.userData.board=b.id;pickable.push(body);
    for(const x of [-b.w/2+.12,b.w/2-.12])for(const y of [-b.h/2+.12,b.h/2-.12]){const screw=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,.04,12),white);screw.rotation.x=Math.PI/2;screw.position.set(x,y,.13);group.add(screw);}
-   const title=textPlane(b.id==='esp'?'ESP32':b.name,b.w-.2,.27);title.position.set(0,b.h/2-.27,.15);group.add(title);
+   const title=textPlane(b.id==='esp'?'ESP32 MAIN':b.name,b.w-.2,.27);title.position.set(0,b.h/2-.27,.15);group.add(title);
    const subtitle=textPlane(b.model,b.w-.25,.16,'#bad0ae');subtitle.position.set(0,b.h/2-.53,.16);group.add(subtitle);
    if(b.kind==='esp'){
      cube(1.18,1.48,.16,0,1.65,.20,mat('#a5b4a7'),group);cube(1.18,.50,.10,0,2.65,.15,dark,group);
@@ -31,8 +31,8 @@ export function createWiringScene(host,onSelect,onBoard){
      cube(.65,.48,.2,0,-3.4,.16,white,group);cube(.42,.27,.21,0,-3.46,.22,dark,group);
      const module=textPlane('WROOM-32E',1.05,.19,'#32483b');module.position.set(0,1.70,.3);group.add(module);
      const usb=textPlane('USB ↓',.8,.20);usb.position.set(0,-2.96,.18);group.add(usb);
-   }else if(b.kind==='lcd'){
-     cube(1.85,.67,.08,.30,-.23,.15,dark,group);const display=textPlane('N  P  K  /  kg',1.65,.25,'#cde6a9');display.position.set(.30,-.23,.21);group.add(display);
+   }else if(b.kind==='hmi'){
+     cube(2.05,1.25,.08,.18,-.18,.15,dark,group);const display=textPlane('TOUCH HMI  ·  N P K  ·  kg',1.85,.28,'#cde6d6','#153830');display.position.set(.18,-.18,.21);group.add(display);
    }else if(b.kind==='servo'||b.kind==='motor'){
      const m=new THREE.Mesh(new THREE.CylinderGeometry(.25,.25,.34,24),white);m.rotation.x=Math.PI/2;m.position.set(.35,-.18,.3);group.add(m);cube(.7,.075,.05,.35,-.18,.50,dark,group);
    }else if(b.kind==='buck'){const coil=new THREE.Mesh(new THREE.TorusGeometry(.25,.09,8,24),gold);coil.position.set(0,-.25,.27);group.add(coil);}

@@ -1,52 +1,37 @@
-# ผลตรวจ Verdant · 10 กันยายน 2026
+# ผลตรวจ Verdant V2 · 11 กันยายน 2026
 
 ## สถานะ
 
-เว็บตัวอย่างพร้อมเปิดใช้งานในเครื่อง เป็นการจำลองเท่านั้น ไม่มีการเชื่อมต่ออุปกรณ์จริง ไม่ได้ deploy สาธารณะ
+เว็บ V2 พร้อมเปิดในเครื่อง เป็นแบบจำลองและเอกสารอ้างอิง ไม่ได้เชื่อมต่อฮาร์ดแวร์จริง
 
 - Production preview: http://127.0.0.1:4174/
 - Development server: http://127.0.0.1:4173/
-- Build: ผ่านด้วย Vite 8.2.2
-- Node tests: ผ่าน 5 ชุด
-- Browser interaction checks: ผ่านบน Chromium ทั้ง desktop 1440 × 1050 และ mobile viewport 390 × 844
-- รอบตรวจ browser สุดท้าย: `passed: true`, `failures: []`, `errors: []` รวม JavaScript exception และ console error
-- Dependency audit (`npm audit --omit=dev`): ไม่มีช่องโหว่ที่รายงาน ณ เวลาตรวจ
-- HawkScan DAST: **ไม่ได้รัน / ถูกขวางที่ prerequisites**
+- HTTP response: 200 พร้อม CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy และ Permissions-Policy
+- Production build: ผ่านด้วย Vite 8.2.2
+- Node tests: ผ่าน 11/11
+- Dependency audit: ไม่พบช่องโหว่ที่รายงาน
+- HawkScan DAST: ไม่ได้รัน เพราะเครื่องไม่มีคำสั่ง `hawk`
 
-## ตรวจอะไรแล้ว
+## สิ่งที่ตรวจแล้ว
 
-1. สูตรทุกแบบ × ขนาดรอบทุกแบบ รักษามวลระหว่างจ่ายทีละช่อง → ชั่ง → ผสม → ปล่อย
-2. รอการกดปล่อยจากผู้ใช้หลังผสมเสร็จ ไม่ปล่อยเอง
-3. E-Stop ระหว่างจ่าย รอน้ำหนัก ผสม และปล่อย: ค่าน้ำหนัก/ผลผลิตคงเดิม มอเตอร์หยุด วาล์วจำลองปิด เริ่มซ้ำและปล่อยไม่ได้จนรีเซ็ต
-4. ล็อกสูตรและน้ำหนักขณะมีรอบงาน ปฏิเสธการตั้งค่าที่ไม่ถูกต้อง
-5. ความเร็วเร่งจำลองรักษาลำดับและผลรวมเวลา ข้ามเฟรมไม่ข้ามเงื่อนไขรอกดปล่อย
-6. Browser ทดลองสัดส่วน 2:1:1 รอบ 2 กก. ผลส่งออกเป็น 1.0 / 0.5 / 0.5 กก. น้ำหนักปลายทาง 2.0 กก. ถังผสมเหลือ 0
-7. Export JSON, เปิด–ปิดประตู, แยก/ประกอบ, component dialog, ปุ่มดูตำแหน่ง, แท็บอุปกรณ์และระบบ
-8. Mobile viewport ไม่มี horizontal overflow และกล้องปรับระยะภาพตามสัดส่วนหน้าจอ
-9. HTTP response 200 และ headers: CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy
-10. แก้ console warning ของ Three.js shadow mode และแก้ฟอนต์ฝังใน CSS ที่ขัดกับ CSP โดยแยกเป็นไฟล์ self-hosted
+1. สูตรและน้ำหนักทุกแบบรักษามวลตลอดลำดับจ่าย ชั่ง ผสม และปล่อย
+2. E-Stop จำลองหยุด Motor ปิดวาล์ว และค้างสถานะจน Reset
+3. Netlist V2 มีอุปกรณ์/จุดต่อ 25 จุดและสาย 78 เส้น รหัสไม่ซ้ำและทุกปลายสายอ้างถึงขาที่มีในข้อมูล
+4. UART ต่อไขว้ HMI GPIO22 TX → MAIN GPIO16 RX2 และ MAIN GPIO17 TX2 → HMI GPIO27 RX
+5. ถอด LCD2004, BSS138, SN74AHCT125N และวงจรประกอบที่ไม่จำเป็นออก
+6. PCA9685 ต่อสัญญาณ CH0–3 ไป Servo 4 ตัวโดยตรง และแยกราง 5V-ACTUATOR
+7. ราง 5V-CONTROL ของ ESP32 MAIN, HMI และ HX711 อยู่ก่อน K1 จึงไม่ดับเมื่อกด E-Stop
+8. 12V ของ MD10C และอินพุต DC-DC ฝั่ง Servo อยู่หลัง K1
+9. E-Stop มี safety channel สองชุด และ AUX-NC แยกผ่าน 10k pull-up + 1k series ไป GPIO34
+10. สาย safety ที่ขึ้นกับรุ่น Safety relay/K1 ถูกทำเครื่องหมาย “ยังห้ามต่อจริง” จำนวน 12 เส้น
+11. CSV มี header และข้อมูลครบ 78 เส้น
 
-11. ทดสอบปุ่มบนโมเดล 3D โดยคลิกจากภาพ: เลือกสูตร เริ่ม และ E-Stop ทำงานผ่าน raycasting ครบ
-12. จอ 3D แสดงสัดส่วนและน้ำหนักเป้าหมายของแต่ละช่อง พร้อมน้ำหนักสะสม; smoke test build สุดท้ายไม่มี console error
+## ข้อจำกัด
 
-## หลักฐานในเครื่อง
+ยังไม่ได้เลือกรุ่น Motor, Safety relay, K1, DC-DC ฝั่ง Servo, Power Supply, ฟิวส์ และขนาดสาย จึงยังไม่สามารถใส่หมายเลข terminal หรือพิกัดกระแสที่พร้อมประกอบจริงได้ การเลือกต้องใช้กระแส stall, แรงบิด, รูปแบบหยุด และการประเมินความเสี่ยงของเครื่องจริง
 
-- [Desktop](output/playwright/desktop-final.png)
-- [Mobile](output/playwright/mobile.png)
-- [ตู้ปิด / หน้าจอไม่สัมผัส](output/playwright/closed-cabinet.png)
-- [แยกชิ้นส่วน](output/playwright/exploded.png)
-- [ตัวอย่างผลส่งออก](output/playwright/test-export.json)
-- [Browser checks](output/playwright/browser-check.js)
-- [Build log](output/build.log)
+GPIO34 ใช้รับ feedback เท่านั้น การหยุดจริงต้องเกิดจาก E-Stop → Safety relay → K1 Servo ที่ดับไฟไม่ได้รับประกันว่าประตูจะปิด จึงต้องมีกลไก fail-safe
 
-หลักฐานใน output เป็นไฟล์ในเครื่องและถูก ignore จาก Git
+การเปลี่ยน V2 ผ่านการ build และตรวจตรรกะอัตโนมัติแล้ว แต่ยังไม่ได้ทำ browser interaction/visual QA รอบใหม่หลังเปลี่ยนโครงสร้าง บันทึกภาพใน `output/playwright` เป็นหลักฐานของเวอร์ชันก่อนหน้า ไม่ควรใช้อ้างว่า V2 ผ่านการตรวจภาพ
 
-## ข้อจำกัดความปลอดภัยและการตรวจ
-
-[HawkScan SKILL.md](/Users/knight/.codex/plugins/cache/claude-cowork/hawkscan/2.5.0/skills/hawkscan/SKILL.md) ระบุว่า “This skill requires **hawk v6.0.0 or newer**.”
-
-ตรวจ `hawk version`, `hawk config --help`, `hawk skills status` แล้วได้ `command not found: hawk` ทั้งหมด พบ Docker CLI แต่ไม่มีไฟล์ `~/.hawk/hawk.properties` และ environment แจ้งว่าไม่มี HAWK_API_KEY จึงไม่สร้าง app/scanner configuration ที่ใช้ ID สมมติ ไม่เริ่ม scan และไม่อ้างว่าผ่าน DAST การรันต่อจำเป็นต้องมี Hawk CLI รุ่นที่รองรับและข้อมูลล็อกอิน StackHawk ที่พร้อมใช้
-
-Dependency audit และ browser tests ไม่ทดแทน DAST และไม่รับรองความปลอดภัยของเครื่องจักร ไม่มี backend/API/auth route ในโครงการนี้ หากเพิ่มฮาร์ดแวร์หรือ API ต้องตรวจเพิ่ม
-
-Build มีคำเตือน bundle เกิน 500 kB (Three.js renderer เป็นส่วนหลัก; gzip รวมประมาณ 164 kB) ไม่ใช่ build failure ยังไม่ได้วัดประสิทธิภาพบนมือถือจริง ทดสอบ responsive ด้วย desktop Chromium ที่จำลองขนาดหน้าจอ
+HawkScan SKILL.md กำหนดให้ใช้ `hawk` รุ่น 6.0.0 ขึ้นไป แต่ preflight ได้ `command not found: hawk` สำหรับ `hawk version`, `hawk config --help` และ `hawk skills status` จึงหยุดตามข้อกำหนดและไม่สร้าง config ด้วย application ID สมมติ การ build, dependency audit และ unit tests ไม่ทดแทน DAST
