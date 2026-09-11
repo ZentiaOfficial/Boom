@@ -1,6 +1,6 @@
 # Wokwi Simulation — Verdant Fertilizer Mixer
 
-จำลองการต่อสายจริงตาม [`src/wiring-data.js`](../src/wiring-data.js) เท่าที่ Wokwi มีอุปกรณ์รองรับ ใช้ ESP32 DevKitC V4 เป็นบอร์ดหลัก เหมือนในเว็บ 3 มิติ
+จำลองการต่อสายจริงตาม [`src/wiring-data.js`](../src/wiring-data.js) เท่าที่ Wokwi มีอุปกรณ์รองรับ ใช้ ESP32 DevKitC V4 เป็นบอร์ดหลัก และ ESP32-2432S028R เป็นจอ HMI — ครบทั้ง 2 บอร์ด ESP32 เหมือนในเว็บ 3 มิติ
 
 ## เปิดใช้งาน
 
@@ -15,10 +15,14 @@
 - HX711 DAT=GPIO32, CLK=GPIO33 (มี load cell จำลองในตัวพาร์ท ปรับน้ำหนักได้จาก Automation ของ Wokwi)
 - ปุ่มกด 5 ปุ่ม (สูตร N/P/K, เริ่ม, ปล่อย) ต่อ GPIO13/14/5/18/23 แบบ INPUT_PULLUP เหมือนของจริง
 - แนวคิด GPIO34 sense: R1 10 kΩ pull-up จาก 3V3, R2 1 kΩ อนุกรมก่อนเข้าสวิตช์แทนหน้าสัมผัส AUX-NC ของ E-Stop — สลับสวิตช์เพื่อจำลองสถานะปกติ/สะดุด
+- **ESP32 HMI (`board-esp32-2432s028r`)** ต่อ UART ไขว้กับ ESP32 MAIN ตรงตาม wiring-data.js: HMI GPIO22 (TX) → MAIN GPIO16 (RX2), MAIN GPIO17 (TX2) → HMI GPIO27 (RX), จ่ายไฟจากราง 5V/GND เดียวกับบอร์ดหลัก
+
+### ข้อจำกัดสำคัญเรื่อง ESP32 สองบอร์ด
+
+Wokwi **ยังไม่รองรับการรันเฟิร์มแวร์แยกกันของ 2 ไมโครคอนโทรลเลอร์ในโปรเจกต์เดียว** (เป็น feature request ที่ยังไม่ทำ — [wokwi-features#186](https://github.com/wokwi/wokwi-features/issues/186)) `sketch.ino` ในนี้คอมไพล์ขึ้น ESP32 MAIN เท่านั้น บอร์ด HMI จะถูกวางและต่อสายถูกต้องตามจริงในไดอะแกรม แต่ **ไม่มีโค้ดรันบนจอ HMI** ในโปรเจกต์นี้ — ถ้าต้องการทดสอบโค้ดจอสัมผัสจริง ต้องแยกไปสร้างอีกโปรเจกต์ Wokwi ต่างหากสำหรับบอร์ด `board-esp32-2432s028r` โดยเฉพาะ
 
 ## สิ่งที่ **ไม่ได้** จำลอง (ไม่มีพาร์ทใน Wokwi ให้ตรงกับของจริง)
 
-- จอ HMI สัมผัส ESP32-2432S028R (ไม่มีพาร์ทจอสัมผัส ESP32 ในตัวใน Wokwi)
 - Cytron MD10C + DC Gear Motor (ไม่มี motor driver แบบนี้ในไลบรารีทางการของ Wokwi)
 - Safety relay สองช่อง + K1 Contactor + วงจร E-Stop แบบ NC คู่ตามจริง (จำลองได้แค่แนวคิดสาย AUX-NC เส้นเดียวด้วยสวิตช์ ไม่ใช่ safety circuit จริง)
 - DC–DC buck converter 2 ราง (CONTROL/ACTUATOR) และ terminal block ต่างๆ — ในไฟล์นี้รวบให้ทุกอุปกรณ์ใช้ราง 5V/GND เส้นเดียวจากบอร์ด ESP32 เพื่อความง่ายในการจำลอง

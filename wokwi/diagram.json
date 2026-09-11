@@ -4,6 +4,7 @@
   "editor": "wokwi",
   "parts": [
     { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "board-esp32-2432s028r", "id": "hmi", "top": 40, "left": -560, "attrs": {} },
     { "type": "chip-pca9685", "id": "pca", "top": -140, "left": 220, "attrs": {} },
 
     { "type": "wokwi-servo", "id": "servo_n", "top": -260, "left": 420, "attrs": { "hornColor": "#c69238" } },
@@ -26,6 +27,11 @@
   "connections": [
     ["esp:TX", "$serialMonitor:RX", "", []],
     ["esp:RX", "$serialMonitor:TX", "", []],
+
+    ["hmi:IO22", "esp:16", "green", ["v0"]],
+    ["esp:17", "hmi:IO27", "yellow", ["v0"]],
+    ["esp:5V", "hmi:VIN", "red", ["v0"]],
+    ["esp:GND.1", "hmi:GND.1", "black", ["v0"]],
 
     ["esp:21", "pca:SDA", "green", ["v0"]],
     ["esp:22", "pca:SCL", "yellow", ["v0"]],
