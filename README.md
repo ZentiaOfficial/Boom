@@ -107,3 +107,7 @@ Servo ที่ถูกตัดไฟอาจไม่ทำให้วา�
 - [Pilz safety relay circuit example](https://www.pilz.com/download/open/PNOZ_X2_8P_Operat_Manual_1004082-EN-17.pdf)
 
 ดูผลตรวจล่าสุดใน [VALIDATION.md](VALIDATION.md)
+
+## จำลองวงจรใน Wokwi
+
+ดู [wokwi/README.md](wokwi/README.md) สำหรับไฟล์จำลองวงจร ESP32 + PCA9685 + Servo + HX711 + ปุ่มกด ตามสายจริงใน `src/wiring-data.js` เท่าที่ Wokwi มีอุปกรณ์รองรับ พร้อมรายการสิ่งที่จำลองไม่ได้ (จอ HMI, motor driver, safety relay ฯลฯ)
