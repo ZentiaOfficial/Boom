@@ -33,21 +33,21 @@
    ],
   "controls": [
     {
-      "id": "debug_timer",
+      "id": "debugTimer",
       "label": "PCA9685 debug timer - fix base unit at 256us",
       "type": "boolean",
       "value": "true"
     },
     {
-      "id": "i2c_debug",
+      "id": "i2cDebug",
       "label": "PCA9685 i2c debug toggle",
       "type": "boolean"
     },
     {
-      "id": "general_debug",
+      "id": "generalDebug",
       "label": "PCA9685 general debug toggle",
       "type": "boolean"
     }
- 
+
   ]
 }

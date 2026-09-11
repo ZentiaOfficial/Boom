@@ -172,9 +172,9 @@ void chip_init()
   // read config attributes
   uint32_t attr;
   
-  attr = attr_init("i2c_debug", false); i2c_debug = attr_read(attr) != 0;
-  attr = attr_init("gen_debug", false); gen_debug = attr_read(attr) != 0;
-  attr = attr_init("debug_timer", false); debug_timer = attr_read(attr) != 0;
+  attr = attr_init("i2cDebug", false); i2c_debug = attr_read(attr) != 0;
+  attr = attr_init("generalDebug", false); gen_debug = attr_read(attr) != 0;
+  attr = attr_init("debugTimer", false); debug_timer = attr_read(attr) != 0;
 
   // initialise channels
   for (int i = 0; i < MAX_CHANNELS; i++)

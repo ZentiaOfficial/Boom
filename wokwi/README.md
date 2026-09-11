@@ -14,15 +14,16 @@
 
 VS Code extension **ไม่คอมไพล์ `pca9685.chip.c` ให้อัตโนมัติแบบ wokwi.com** ถ้าไม่ build ก่อน ตัว PCA9685 ในไดอะแกรมจะขึ้น **"Missing chip"** และกดปุ่มแล้ว servo จะไม่ขยับเลย (เพราะไม่มีชิปฟังสัญญาณ I²C อยู่จริง)
 
-ต้อง build `pca9685.chip.c` เป็น `dist/chip.wasm` เองครั้งเดียวก่อน:
+ต้อง build `pca9685.chip.c` เป็น `dist/chip.wasm` เองครั้งเดียวก่อน โดยใช้ **wokwi-cli** (อย่าคอมไพล์ด้วย WASI SDK ที่ดาวน์โหลดเองตรงๆ — SDK รุ่นใหม่ๆ เช่น 34 ลิงก์ `clock_time_get` เข้ามาโดยไม่ตั้งใจ ทำให้ขึ้น error `"clock_time_get": function import requires a callable` เพราะ runtime ของ Wokwi ไม่รองรับ WASI syscall ตัวนี้ — `wokwi-cli` ดึง WASI SDK รุ่นที่ทดสอบแล้วว่าใช้ได้ (v25) มาให้อัตโนมัติ):
 
-1. ติดตั้ง [WASI SDK](https://github.com/WebAssembly/wasi-sdk/releases) (macOS arm64 ใช้ไฟล์ `wasi-sdk-*-arm64-macos.tar.gz`) แตกไฟล์ไว้ที่ไหนก็ได้
-2. รันคำสั่งนี้จาก root ของโปรเจกต์ (แทน `<WASI_SDK>` ด้วย path ที่แตกไฟล์ไว้):
+1. ติดตั้ง wokwi-cli:
+   ```sh
+   curl -L https://wokwi.com/ci/install.sh | sh
+   ```
+2. คอมไพล์จาก root ของโปรเจกต์:
    ```sh
    mkdir -p dist
-   <WASI_SDK>/bin/wasm32-wasip1-clang \
-     -nostartfiles -Wl,--import-memory -Wl,--export-table -Wl,--no-entry -Werror \
-     -I . -o dist/chip.wasm pca9685.chip.c
+   wokwi-cli chip compile pca9685.chip.c -o dist/chip.wasm
    cp pca9685.chip.json dist/chip.json
    ```
 3. เพิ่มบล็อกนี้ใน `wokwi.toml`:
@@ -33,7 +34,11 @@ VS Code extension **ไม่คอมไพล์ `pca9685.chip.c` ให้อ
    ```
 4. กด Start Simulation ใหม่ — "Missing chip" ควรหายและกดปุ่มแล้ว servo ขยับได้จริง
 
-`dist/` เป็นไฟล์ build ที่ generate ได้ใหม่เสมอจาก `pca9685.chip.c` จึงไม่ต้อง commit เข้า git (อยู่ใน `.gitignore` อยู่แล้วผ่านกฎ `dist/`)
+`dist/` เป็นไฟล์ build ที่ generate ได้ใหม่เสมอจาก `pca9685.chip.c` จึงไม่ต้อง commit เข้า git (อยู่ใน `.gitignore` อยู่แล้วผ่านกฎ `dist/`) ทุกครั้งที่แก้ `pca9685.chip.c` ต้องรันคำสั่งข้อ 2 ใหม่แล้วกด Start Simulation อีกครั้ง
+
+### จอ HMI ไม่ติด — ไม่ใช่บั๊ก เป็นข้อจำกัดของ Wokwi
+
+จอ ESP32-2432S028R (HMI) จะขึ้นดำตลอดเพราะ**ไม่มีเฟิร์มแวร์รันอยู่บนบอร์ดนั้น** — ดูหัวข้อ "ข้อจำกัดสำคัญเรื่อง ESP32 สองบอร์ด" ด้านล่าง Wokwi รันได้แค่ไมโครคอนโทรลเลอร์เดียวต่อโปรเจกต์ (ESP32 MAIN) จอ HMI ถูกต่อสายถูกต้องแต่ไม่มีโค้ดให้รัน จึงไม่มีทางทำให้จอติดในโปรเจกต์นี้ได้
 
 ## สิ่งที่จำลองตรงกับของจริง (1:1 ตาม wiring-data.js)
 
