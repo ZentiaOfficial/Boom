@@ -11,14 +11,21 @@ import { createScene } from './scene.js';
 import { setupWiringPage } from './wiring-ui.js';
 import { setupCodeViewer } from './code-viewer.js';
 import { componentFirmware } from './firmware.js';
-import { Simulation, recipes, phaseLabels } from './simulation.js';
+import { Simulation, phaseLabels, screenLabels, faultNames, FLOW_G_PER_S, AIR_CARRY_G } from './simulation.js';
+import { parseParams } from './firmware-params.js';
+import { effectiveSource, firmwareChangedEvent } from './firmware.js';
+import { drawHmi, hitTest, HMI_W, HMI_H } from './hmi-screen.js';
 import { components, sources, pins, shoppingList } from './data.js';
 import './style.css';
+import './cabinet.css';
 import './wiring.css';
 
 const icon=(name,cls='')=>`<i data-lucide="${name}" class="${cls}"></i>`;
 const sourceLinks=()=>sources.map(([name,url])=>`<a href="${url}" target="_blank" rel="noopener noreferrer">${name}${icon('arrow-up-right')}</a>`).join('');
-const sim=new Simulation();
+// The cabinet runs the same numbers as the sketches (RECIPE_TARGET_G, CALIBRATION_OFFSET_G,
+// STIR_DURATION_MS ...), including any edits made in the code editor.
+function loadParams(){const params=parseParams(effectiveSource('esp'),effectiveSource('hmi'));let edited=false;try{edited=['esp','hmi'].some(id=>localStorage.getItem(`verdant:code:${id}`)!==null);}catch{}params.edited=edited;return params;}
+const sim=new Simulation(loadParams());
 const app=document.querySelector('#app');
 app.innerHTML=`
 <aside class="sidebar">
@@ -54,18 +61,18 @@ app.innerHTML=`
         </section>
         <section class="control-card" aria-label="แผงทดลองผสม">
           <div class="control-heading"><div><span class="eyebrow">LET’S MIX</span><h2>ทดลองผสมปุ๋ย</h2></div><span class="control-symbol">${icon('sliders-horizontal')}</span></div>
-          <div class="control-body"><label class="field-label">01 <span>เลือกสัดส่วนวัตถุดิบ</span><small>N : P : K</small></label>
-            <div class="recipe-buttons">${recipes.map((r,i)=>`<button class="recipe ${i===0?'selected':''}" data-recipe="${r.id}" aria-pressed="${i===0}" aria-label="สูตร ${r.name} ${r.ratio.join(':')}"><strong>${r.ratio.join(' : ')}</strong><span>${r.name}</span></button>`).join('')}</div>
-            <div class="batch-row"><label class="field-label" for="batch">02 <span>น้ำหนักต่อรอบ</span></label><div class="select-wrap"><select id="batch"><option value="0.5">0.5 กก.</option><option value="1" selected>1.0 กก.</option><option value="2">2.0 กก.</option></select>${icon('chevron-down')}</div></div>
-            <div class="target-row" title="ปัดเศษเป็นกรัมเพื่อแสดงผล; การจำลองใช้ค่าละเอียดตามสัดส่วน">${['N','P','K'].map((n,i)=>`<div class="target-item"><span class="nutrient n${i}">${n}</span><div><strong id="target-${i}">333</strong><small> กรัม</small></div></div>`).join('')}</div>
-            <div class="display-panel" role="status" aria-label="หน้าจอจำลองของ ESP32 จอสัมผัส"><div class="display-top"><span>${icon('monitor')} ESP32 DISPLAY</span><span id="display-status-dot" class="status-dot"></span></div><div class="weight-readout"><strong id="weight">0.000</strong><span>kg</span></div><div class="weight-meter"><span id="weight-progress"></span></div><div class="display-bottom"><span id="phase-label">พร้อมเริ่มทดลอง</span><span id="target-total">/ 1.000 kg</span></div></div>
-            <div class="action-buttons"><button id="start-btn" class="primary-button">${icon('play')}<span>เริ่มผสมปุ๋ย</span></button><button id="estop-btn" aria-label="หยุดฉุกเฉิน" title="หยุดฉุกเฉิน">${icon('octagon-pause')}<span>STOP</span></button></div>
-            <div class="under-controls"><button id="reset-btn">${icon('rotate-ccw')}รีเซ็ต</button><label for="speed">ความเร็วจำลอง <select id="speed"><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option></select></label></div>
-            <div class="material-note">${icon('info')}<p>อัตราส่วนนี้คือมวลวัตถุดิบจากแต่ละช่อง<br>ไม่ใช่เกรดธาตุอาหาร เช่น 15-15-15</p></div>
+          <div class="control-body"><label class="field-label">01 <span>เลือกสูตร</span><small>ปุ่มเขียว 1 / 2 / 3</small></label>
+            <div class="recipe-buttons">${[1,2,3].map(n=>`<button class="recipe" data-recipe="${n}" aria-pressed="false" aria-label="สูตร ${n}"><strong>–</strong><span>สูตร ${n}</span></button>`).join('')}</div>
+            <div class="target-row" title="RECIPE_TARGET_G ของสูตรที่เลือก อ่านจาก esp32_main_dispenser.ino">${['N','P','K'].map((n,i)=>`<div class="target-item"><span class="nutrient n${i}">${n}</span><div><strong id="target-${i}">0</strong><small> กรัม</small></div></div>`).join('')}</div>
+            <div class="display-panel" role="group" aria-label="หน้าจอสัมผัส ESP32-2432S028 จำลอง แตะปุ่มบนจอได้"><div class="display-top"><span>${icon('monitor')} ESP32-2432S028 · <b id="screen-name">BOOT</b></span><span id="display-status-dot" class="status-dot"></span></div><canvas id="hmi-canvas" class="hmi-canvas" width="${HMI_W*2}" height="${HMI_H*2}"></canvas><div class="display-bottom"><span id="phase-label">กำลังเปิดเครื่อง</span><span id="code-source">โค้ดต้นฉบับ</span></div></div>
+            <div class="action-buttons"><button id="start-btn" class="primary-button">${icon('play')}<span>ปุ่มเขียว 4</span></button><button id="estop-btn" aria-label="ปุ่ม E-Stop แบบล็อก กดล็อก บิดปลด" title="กดล็อก / บิดปลด">${icon('octagon-pause')}<span>E-STOP</span></button></div>
+            <div class="under-controls"><button id="reset-btn">${icon('rotate-ccw')}รีเซ็ต · ล้างภาชนะ</button><button id="power-btn">${icon('zap')}จำลองไฟดับ</button><label for="speed">ความเร็ว <select id="speed"><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option></select></label></div>
+            <div class="serial-head"><span>SERIAL MONITOR · ESP32 38pin</span></div><pre class="serial-log" id="serial-log" role="log" aria-label="Serial Monitor ของ ESP32 38pin"></pre>
+            <div class="material-note">${icon('info')}<p>เป้าหมายเป็นกรัมของแต่ละช่อง ไม่ใช่เกรดธาตุอาหาร · ตู้ทำงานตามโค้ด Code_Board ชุดเดียวกับที่เปิดดู/แก้ได้ · แบบจำลองสมมติอัตราไหล ${FLOW_G_PER_S} g/s และไม่มีปุ๋ยค้างในอากาศ (ค่าจริงต้องวัดจากเครื่อง)</p></div>
           </div>
         </section>
       </div>
-      <section class="process-card"><div class="process-heading"><span class="eyebrow">THE PROCESS</span><h2>จากวัตถุดิบ สู่ส่วนผสม</h2><span id="process-state">รอเริ่มรอบ</span></div><div class="process-track">${[['container','จ่าย N · P · K','Servo 1–3'],['weight','ชั่งน้ำหนัก','Load Cell + HX711'],['rotate-3d','ผสมให้เข้ากัน','DC gear motor'],['package-check','ปล่อยปุ๋ย','Servo 4']].map(([ico,title,sub],i)=>`<div class="process-step" data-step="${i}"><div class="step-icon">${icon(ico)}<small>0${i+1}</small></div><div><strong>${title}</strong><span>${sub}</span></div>${i<3?icon('chevron-right','step-arrow'):''}</div>`).join('')}</div></section>
+      <section class="process-card"><div class="process-heading"><span class="eyebrow">THE PROCESS</span><h2>จากวัตถุดิบ สู่ส่วนผสม</h2><span id="process-state">รอเริ่มรอบ</span></div><div class="process-track">${[['container','จ่าย N · P · K','Servo 1–3'],['weight','ชั่งน้ำหนัก','Load Cell + HX711'],['rotate-3d','กวนผสม','มอเตอร์ JGB37-520 + L298N'],['package-check','ปล่อยปุ๋ย','Servo 4']].map(([ico,title,sub],i)=>`<div class="process-step" data-step="${i}"><div class="step-icon">${icon(ico)}<small>0${i+1}</small></div><div><strong>${title}</strong><span>${sub}</span></div>${i<3?icon('chevron-right','step-arrow'):''}</div>`).join('')}</div></section>
       <div class="bottom-note"><span>${icon('flask-conical')} แบบจำลองเพื่อสื่อสารแนวคิด · ค่าน้ำหนักและการเคลื่อนไหวสร้างจากการจำลอง</span><button data-tab="system">ดูแนวทางระบบจริง ${icon('arrow-right')}</button></div>
     </section>
     <section id="components-page" hidden><div class="section-intro"><span class="small-tag">INSIDE THE BOX</span><p>กดอุปกรณ์เพื่อดูหน้าที่ เงื่อนไขการเลือก และตำแหน่งในโมเดล</p></div><div class="component-grid">${components.map((c,i)=>`<button class="component-card" data-component="${c.id}"><div class="component-top"><span class="component-icon" style="--component-color:${c.color}">${icon(c.icon)}</span><span>0${i+1} /</span></div><small>${c.en}</small><h2>${c.name}</h2><p>${c.detail}</p><div class="component-footer"><span>${c.qty}</span>${icon('arrow-up-right')}</div></button>`).join('')}</div></section>
@@ -83,12 +90,12 @@ app.innerHTML=`
   </main>
 </div>
 <dialog id="component-dialog"><button class="dialog-close icon-button" aria-label="ปิดรายละเอียด">${icon('x')}</button><div id="component-content"></div></dialog>
-<dialog id="guide-dialog"><button class="dialog-close icon-button" aria-label="ปิดคู่มือ">${icon('x')}</button><span class="eyebrow">A LITTLE GUIDE</span><h2>ทดลองกล่องผสมปุ๋ย</h2><ol><li>ลากโมเดลเพื่อหมุน เลื่อนเพื่อซูม หรือใช้ปุ่มคืนมุมมอง</li><li>เปิด–ปิดประตู หรือเลือกแยกชิ้นส่วน กดป้ายเพื่อดูอุปกรณ์</li><li>เลือกสัดส่วนวัตถุดิบ N:P:K และน้ำหนัก 0.5 / 1 / 2 กก.</li><li>กดเริ่ม ระบบจะจ่ายทีละช่อง ชั่งสะสม รอค่านิ่ง และผสม</li><li>เมื่อผสมเสร็จ กด “ปล่อยปุ๋ย” แล้วบันทึกผลเป็นไฟล์ JSON</li><li>ปุ่ม STOP จำลอง E‑Stop ซึ่งตัดไฟมอเตอร์และหยุด Servo แต่จอและ ESP32 ยังทำงาน กดรีเซ็ตก่อนเริ่มรอบใหม่</li><li>กดที่จอหรือ ESP32 ในหน้า “เดินสาย 3D” (หรือเปิดจากรายละเอียดอุปกรณ์) เพื่อดูและแก้โค้ดของบอร์ดนั้น</li></ol><div class="system-note">จอบนตู้จำลอง ESP32-2432S028 แบบสัมผัส ส่วนปุ่มเขียว 4 ปุ่มและ E‑Stop เป็นปุ่มจริงแยกจากหน้าจอ ปุ่มบนโมเดลกดได้เมื่อมองเห็นด้านหน้า</div><h3>ขอบเขตของแนวคิด</h3><p>ไม่มีการเชื่อมต่อฮาร์ดแวร์ ค่าชั่ง เวลา ความจุ และขนาดอุปกรณ์เป็นการจำลอง ยังไม่ใช่ CAD สำหรับผลิตหรือระบบความปลอดภัยที่ผ่านการรับรอง</p><p>ช่อง N/P/K หมายถึงวัตถุดิบตั้งต้นแต่ละชนิด ไม่ใช่ธาตุบริสุทธิ์ การคำนวณเกรด N–P₂O₅–K₂O ต้องมีข้อมูลวิเคราะห์ของวัตถุดิบจริง สูตรในเว็บจึงเป็นเพียงสัดส่วนมวลตัวอย่าง</p><div class="sources-inline">${sourceLinks()}</div></dialog>
+<dialog id="guide-dialog"><button class="dialog-close icon-button" aria-label="ปิดคู่มือ">${icon('x')}</button><span class="eyebrow">A LITTLE GUIDE</span><h2>ทดลองกล่องผสมปุ๋ย</h2><ol><li>ลากโมเดลเพื่อหมุน เลื่อนเพื่อซูม หรือใช้ปุ่มคืนมุมมอง</li><li>เปิด–ปิดประตู หรือเลือกแยกชิ้นส่วน กดป้ายเพื่อดูอุปกรณ์</li><li>กดปุ่มเขียว 1 / 2 / 3 เพื่อเลือกสูตร (หรือแตะจอ) แล้วกดปุ่มเขียว 4 เพื่อเริ่มผสม</li><li>ตู้จ่าย N → P → K ตามลำดับ ปิดวาล์วเมื่อน้ำหนักถึง เป้าหมาย − ค่า Calibrate แล้วรอน้ำหนักนิ่งก่อนเปิดตัวถัดไป จากนั้นกวนตามเวลาใน STIR_DURATION_MS</li><li>เมื่อผสมเสร็จ กดปุ่มเขียว 4 เพื่อปล่อยปุ๋ย ดู Serial Monitor เพื่อเทียบน้ำหนักที่ปิดวาล์วกับน้ำหนักที่นิ่ง</li><li>E-Stop เป็นปุ่มล็อก: กดแล้วตัดไฟมอเตอร์และหยุด Servo บิดปลดแล้วจอกลับหน้าเลือกสูตรเอง · ปุ่ม “จำลองไฟดับ” ทดสอบหน้า Power Recovery</li><li>กดที่จอหรือ ESP32 (หรือเข้าหน้าเดินสาย 3D) เพื่อดูและแก้โค้ด — ตู้จะทำงานตามโค้ดที่แก้ทันที</li></ol><div class="system-note">จอบนตู้จำลอง ESP32-2432S028 แบบสัมผัส ส่วนปุ่มเขียว 4 ปุ่มและ E‑Stop เป็นปุ่มจริงแยกจากหน้าจอ ปุ่มบนโมเดลกดได้เมื่อมองเห็นด้านหน้า</div><h3>ขอบเขตของแนวคิด</h3><p>ไม่มีการเชื่อมต่อฮาร์ดแวร์ ค่าชั่ง เวลา ความจุ และขนาดอุปกรณ์เป็นการจำลอง ยังไม่ใช่ CAD สำหรับผลิตหรือระบบความปลอดภัยที่ผ่านการรับรอง</p><p>ช่อง N/P/K หมายถึงวัตถุดิบตั้งต้นแต่ละชนิด ไม่ใช่ธาตุบริสุทธิ์ การคำนวณเกรด N–P₂O₅–K₂O ต้องมีข้อมูลวิเคราะห์ของวัตถุดิบจริง สูตรในเว็บจึงเป็นเพียงสัดส่วนมวลตัวอย่าง</p><div class="sources-inline">${sourceLinks()}</div></dialog>
 <div id="toast" role="status" hidden></div>`;
 createIcons({icons});
 const $=s=>document.querySelector(s);
 let scene;
-try {scene=createScene($('#viewer'),showComponent,handlePanel);}catch(error){const notice=document.createElement('div');notice.className='webgl-error';notice.textContent='ไม่สามารถเปิด 3D ได้ กรุณาใช้เบราว์เซอร์ที่รองรับ WebGL2 และเปิด hardware acceleration คุณยังทดลองแผงควบคุมและดูรายละเอียดอุปกรณ์ได้';$('#viewer').prepend(notice);console.error(error);}
+try {scene=createScene($('#viewer'),showComponent,handlePanel,onScreenTouch);}catch(error){const notice=document.createElement('div');notice.className='webgl-error';notice.textContent='ไม่สามารถเปิด 3D ได้ กรุณาใช้เบราว์เซอร์ที่รองรับ WebGL2 และเปิด hardware acceleration คุณยังทดลองแผงควบคุมและดูรายละเอียดอุปกรณ์ได้';$('#viewer').prepend(notice);console.error(error);}
 function notify(message){const t=$('#toast');t.textContent=message;t.hidden=false;clearTimeout(notify.timer);notify.timer=setTimeout(()=>t.hidden=true,4000);}
 const codeViewer=setupCodeViewer({icon,refreshIcons:()=>createIcons({icons}),notify});
 const wiringPage=setupWiringPage($('#wiring-page'),{icon,refreshIcons:()=>createIcons({icons}),notify,openCode:id=>codeViewer.open(id)});
@@ -106,15 +113,17 @@ function showComponent(id){const c=components.find(c=>c.id===id);if(!c)return;
   const codeButton=$('#open-component-code');if(codeButton)codeButton.onclick=()=>{$('#component-dialog').close();codeViewer.open(componentFirmware[id]);};
   $('#locate-component').onclick=()=>{tab('studio');scene?.setDoor(true);scene?.select(id);syncDoor();$('#component-dialog').close();};
 }
-function handlePanel(action){if(action.startsWith('recipe')){const r=recipes[Number(action.at(-1))];if(!sim.configure(r.id,sim.batch))notify('รีเซ็ตรอบก่อนเปลี่ยนสูตร');}else if(action==='start')start();else if(action==='discharge'){if(!sim.discharge())notify('ต้องผสมเสร็จก่อนปล่อยปุ๋ย');}else if(action==='emergency')emergency();updateUI();}
-function start(){if(sim.phase==='ready'){sim.discharge();return;}if(!sim.start())notify(sim.phase==='emergency'?'กดรีเซ็ตเพื่อปลดสถานะหยุดฉุกเฉิน':'กดรีเซ็ตเพื่อเริ่มรอบใหม่');}
-function emergency(){sim.emergency();notify('หยุดแล้ว · ทุกประตูในแบบจำลองปิด มอเตอร์หยุด · ต้องรีเซ็ตก่อนเริ่มใหม่');updateUI();}
+function handlePanel(action){if(action.startsWith('recipe'))sim.press(String(Number(action.at(-1))+1));else if(action==='start')sim.press('CONFIRM');else if(action==='emergency')toggleEstop();updateUI();}
+function onScreenTouch(x,y){const command=hitTest(sim,x,y);if(!command)return false;sim.command(command);updateUI();return true;}
+function toggleEstop(){sim.setEstop(!sim.estop);notify(sim.estop?'E-Stop กดล็อก · ตัดไฟ 12V ของมอเตอร์ทางฮาร์ดแวร์ · บิดปลดแล้วจอจะกลับหน้าเลือกสูตรเอง':'บิดปลด E-Stop แล้ว');updateUI();}
 function syncDoor(){const open=scene?.doorOpen??true;$('#door-btn').setAttribute('aria-pressed',String(open));$('#door-btn .toggle').classList.toggle('on',open);$('#door-btn span').textContent=open?'เปิดประตู':'ปิดประตู';}
-app.addEventListener('click',e=>{const tabButton=e.target.closest('[data-tab]');if(tabButton)tab(tabButton.dataset.tab);const component=e.target.closest('[data-component]');if(component)showComponent(component.dataset.component);const recipe=e.target.closest('[data-recipe]');if(recipe){sim.configure(recipe.dataset.recipe,sim.batch);updateUI();}});
-$('#batch').onchange=e=>{sim.configure(sim.recipe.id,e.target.value);updateUI();};
+app.addEventListener('click',e=>{const tabButton=e.target.closest('[data-tab]');if(tabButton)tab(tabButton.dataset.tab);const component=e.target.closest('[data-component]');if(component)showComponent(component.dataset.component);const recipe=e.target.closest('[data-recipe]');if(recipe){if(!sim.press(recipe.dataset.recipe))notify('เลือกสูตรได้เฉพาะหน้าเลือกสูตร/ยืนยันสูตร');updateUI();}});
 $('#speed').onchange=e=>{sim.speed=Number(e.target.value);};
-$('#start-btn').onclick=()=>{start();updateUI();};$('#estop-btn').onclick=emergency;
-$('#reset-btn').onclick=()=>{sim.reset();updateUI();notify('ล้างน้ำหนักและผลรอบเดิมแล้ว · พร้อมเริ่มใหม่');};
+$('#start-btn').onclick=()=>{sim.press('CONFIRM');updateUI();};$('#estop-btn').onclick=toggleEstop;
+$('#hmi-canvas').onclick=e=>{const r=e.currentTarget.getBoundingClientRect();onScreenTouch((e.clientX-r.left)/r.width*HMI_W,(e.clientY-r.top)/r.height*HMI_H);};
+$('#power-btn').onclick=()=>{sim.powerCycle();updateUI();notify('ตัดไฟแล้วเปิดใหม่ · ปุ่ม/จอทำงานตาม NVS ที่บันทึกไว้ (ถ้าตัดไฟระหว่างผสมจะขึ้น Power Recovery)');};
+window.addEventListener(firmwareChangedEvent,()=>{sim.setParams(loadParams());updateUI();});
+$('#reset-btn').onclick=()=>{sim.reset();updateUI();notify('เทปุ๋ยในภาชนะทิ้งและเปิดเครื่องใหม่แล้ว');};
 $('#door-btn').onclick=()=>{scene?.setDoor(!scene.doorOpen);syncDoor();};
 $('#home-btn').onclick=()=>scene?.home();
 $('#rotate-btn').onclick=e=>{const b=e.currentTarget;const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',String(on));b.classList.toggle('on',on);scene?.setAuto(on);};
@@ -126,26 +135,33 @@ $('#guide-btn').onclick=$('#about-btn').onclick=()=>$('#guide-dialog').showModal
 $('.brand').onclick=e=>{e.preventDefault();tab('studio');};
 document.querySelectorAll('dialog').forEach(d=>{d.querySelector('.dialog-close').onclick=()=>d.close();d.addEventListener('click',e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close();}});});
 $('#export-btn').onclick=()=>{
-  const report={project:'Verdant Compact Mixer',type:'SIMULATION_ONLY',createdAt:new Date().toISOString(),cabinetReferenceCm:{width:40,height:57,depth:20},recipe:{id:sim.recipe.id,inputMassRatio:sim.recipe.ratio,note:'Input mass proportions, NOT N-P2O5-K2O fertilizer grade'},targetKg:sim.batch,targetsKg:sim.targets,dosedKg:sim.dosed,chamberKg:sim.weight,outputKg:sim.output,phase:sim.phase,simulatedSeconds:sim.totalTime,events:sim.history,limitations:['No hardware connected','Dimensions and capacity are illustrative, fit unverified','No nutrient analysis or production safety validation']};
+  const round=v=>Math.round(v*10)/10;
+  const report={project:'Verdant Compact Mixer',type:'SIMULATION_ONLY',createdAt:new Date().toISOString(),cabinetReferenceCm:{width:40,height:57,depth:20},firmware:{source:sim.params.edited?'edited in the browser code editor':'Code_Board original',recipeTargetG:sim.params.targetG,calibrationOffsetG:sim.params.offsetG,stirMs:sim.params.stirMs},recipe:sim.selectedRecipe,dispensedG:sim.dispensedG.map(round),loadCellG:round(sim.loadG),releasedG:round(sim.outputG),screen:sim.screen,simulatedSeconds:round(sim.totalTime),serialLog:sim.log.map(l=>l.text),assumptions:{flowGramsPerSecond:FLOW_G_PER_S,airCarryG:AIR_CARRY_G},limitations:['No hardware connected','Flow rate and fertilizer left in the air are assumptions, not measurements','Dimensions and capacity are illustrative, fit unverified','No nutrient analysis or production safety validation']};
   const url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download=`verdant-simulation-${Date.now()}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);notify('บันทึกผลจำลองเป็นไฟล์ JSON แล้ว');
 };
-let prevPhase='';
+let prevScreen='',lastLogKey='';
+const confirmLabels={RECIPE_SELECT:'ปล่อยปุ๋ยฉุกเฉิน',RECIPE_DETAIL:'เริ่มผสม',MIX_DONE:'ปล่อยปุ๋ย',POWER_RECOVERY:'ปล่อยปุ๋ยทันที',EMERGENCY_CONFIRM:'ยืนยันปล่อย',FAULT:'OK'};
 function updateUI(){
-  $('#weight').textContent=sim.weight.toFixed(3);$('#weight-progress').style.width=`${Math.min(100,sim.weight/sim.batch*100)}%`;
-  $('#phase-label').textContent=phaseLabels[sim.phase];$('#target-total').textContent=`/ ${sim.batch.toFixed(3)} kg`;
-  $('.display-panel').classList.toggle('emergency',sim.phase==='emergency');
-  const grams=sim.targets.map(v=>Math.floor(v*1000));let diff=Math.round(sim.batch*1000)-grams.reduce((a,b)=>a+b,0);for(let i=0;diff>0;i++,diff--)grams[i%3]++;
-  grams.forEach((v,i)=>$(`#target-${i}`).textContent=v.toLocaleString());
-  document.querySelectorAll('[data-recipe]').forEach(b=>{b.disabled=sim.locked;b.classList.toggle('selected',b.dataset.recipe===sim.recipe.id);b.setAttribute('aria-pressed',String(b.dataset.recipe===sim.recipe.id));});
-  $('#batch').disabled=sim.locked;
-  $('#start-btn').disabled=!['idle','ready'].includes(sim.phase);
-  $('#start-btn span').textContent=sim.phase==='ready'?'ปล่อยปุ๋ย':sim.phase==='complete'?'จบรอบแล้ว':sim.phase==='emergency'?'หยุดฉุกเฉิน':sim.active?'กำลังทำงาน…':'เริ่มผสมปุ๋ย';
-  $('#estop-btn').classList.toggle('latched',sim.phase==='emergency');
-  $('#reset-btn').textContent=sim.phase==='emergency'?'↺ ปลดหยุดและรีเซ็ต':'↺ รีเซ็ต';
-  const index={idle:-1,doseN:0,doseP:0,doseK:0,settle:1,mix:2,ready:2,discharge:3,complete:4,emergency:-1}[sim.phase];
-  document.querySelectorAll('[data-step]').forEach((s,i)=>{s.classList.toggle('current',i===index);s.classList.toggle('done',i<index);});
-  $('#process-state').textContent=sim.phase==='complete'?`ปล่อยแล้ว ${sim.output.toFixed(3)} กก.`:sim.phase==='idle'?'รอเริ่มรอบ':phaseLabels[sim.phase];
-  if(sim.phase!==prevPhase){prevPhase=sim.phase;if(sim.phase==='ready')notify('ผสมครบแล้ว · กดปล่อยปุ๋ยเพื่อจบรอบ');}
+  drawHmi($('#hmi-canvas').getContext('2d'),sim,2);
+  const screenName=sim.screen==='FAULT'?faultNames[sim.faultKind]:sim.screen;
+  $('#screen-name').textContent=screenName;
+  $('#phase-label').textContent=sim.run?phaseLabels[sim.mixPhase]:sim.releasing?'กำลังปล่อยปุ๋ย':screenLabels[sim.screen];
+  $('.display-panel').classList.toggle('emergency',sim.screen==='ESTOP'||sim.screen==='FAULT');
+  $('#code-source').textContent=sim.params.warnings.length?`⚠ อ่าน ${sim.params.warnings.join(', ')} ไม่ได้ · ใช้ค่าต้นฉบับ`:sim.params.edited?'ใช้โค้ดที่แก้ไขแล้ว':'โค้ดต้นฉบับ';
+  sim.params.targetG[sim.selectedRecipe-1].forEach((v,i)=>$(`#target-${i}`).textContent=Math.round(v).toLocaleString());
+  const choosing=!sim.busy&&['RECIPE_SELECT','RECIPE_DETAIL'].includes(sim.screen);
+  document.querySelectorAll('[data-recipe]').forEach(b=>{const n=Number(b.dataset.recipe),picked=n===sim.selectedRecipe&&!['RECIPE_SELECT','BOOT'].includes(sim.screen);b.querySelector('strong').textContent=sim.recipes[n-1].npk.join(' : ');b.disabled=!choosing;b.classList.toggle('selected',picked);b.setAttribute('aria-pressed',String(picked));});
+  const label=confirmLabels[sim.screen];
+  $('#start-btn').disabled=sim.busy||!label;
+  $('#start-btn span').textContent=sim.releasing?'กำลังปล่อยปุ๋ย…':sim.run?'กำลังทำงาน…':sim.screen==='ESTOP'?'บิดปลด E-Stop ก่อน':label?`${label} · ปุ่มเขียว 4`:'รอเครื่อง…';
+  $('#estop-btn').classList.toggle('latched',sim.estop);
+  $('#estop-btn span').textContent=sim.estop?'บิดปลด':'E-STOP';
+  const index=sim.run?{dose:0,tare:1,settle:1,stir:2}[sim.run.step]:sim.releasing||sim.screen==='MIX_DONE'?3:sim.screen==='RECIPE_SELECT'&&sim.outputG>0?4:-1;
+  document.querySelectorAll('[data-step]').forEach((el,i)=>{el.classList.toggle('current',i===index);el.classList.toggle('done',i<index);});
+  $('#process-state').textContent=sim.run?phaseLabels[sim.mixPhase]:sim.releasing?'กำลังปล่อยปุ๋ย':sim.screen==='MIX_DONE'?'ผสมเสร็จ · รอปล่อย':sim.screen==='RECIPE_SELECT'&&sim.outputG>0?`ปล่อยแล้ว ${(sim.outputG/1000).toFixed(3)} กก.`:sim.screen==='ESTOP'?'หยุดฉุกเฉิน':'รอเริ่มรอบ';
+  const lines=sim.log.slice(-9),key=lines.length+'|'+(lines.at(-1)?.text??'');
+  if(key!==lastLogKey){lastLogKey=key;const box=$('#serial-log');box.textContent=lines.map(l=>l.text).join('\n');box.scrollTop=box.scrollHeight;}
+  if(sim.screen!==prevScreen){prevScreen=sim.screen;if(sim.screen==='MIX_DONE')notify('ผสมครบแล้ว · กดปุ่มเขียว 4 หรือแตะ RELEASE FERTILIZER เพื่อปล่อยปุ๋ย');}
 }
 let lastTime=performance.now(),uiTime=0;
 function frame(now){const dt=Math.min((now-lastTime)/1000,.1);lastTime=now;sim.tick(dt);scene?.render(dt,sim);if(now-uiTime>70){updateUI();uiTime=now;}requestAnimationFrame(frame);}

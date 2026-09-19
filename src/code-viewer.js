@@ -1,4 +1,4 @@
-import { firmware } from './firmware.js';
+import { firmware, firmwareChangedEvent } from './firmware.js';
 
 const storageKey = id => `verdant:code:${id}`;
 function readSaved(id) { try { return localStorage.getItem(storageKey(id)); } catch { return null; } }
@@ -58,6 +58,7 @@ export function setupCodeViewer({ icon, refreshIcons, notify }) {
   }
   function save() {
     if (isModified()) writeSaved(current, editor.value); else clearSaved(current);
+    window.dispatchEvent(new CustomEvent(firmwareChangedEvent));
   }
   function jumpToCalibration() {
     const marker = firmware[current].calibrationMarker;
@@ -97,6 +98,7 @@ export function setupCodeViewer({ icon, refreshIcons, notify }) {
     if (!isModified()) { notify('โค้ดตรงกับต้นฉบับอยู่แล้ว'); return; }
     if (!confirm('ทิ้งการแก้ไขทั้งหมดของไฟล์นี้และกลับไปใช้โค้ดต้นฉบับ?')) return;
     clearSaved(current);
+    window.dispatchEvent(new CustomEvent(firmwareChangedEvent));
     load(current);
     notify('คืนค่าโค้ดต้นฉบับแล้ว');
   };

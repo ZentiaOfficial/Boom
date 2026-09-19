@@ -1,0 +1,7 @@
+/* Control panel that mirrors the real firmware: HMI screen + Serial Monitor */
+.hmi-canvas{display:block;width:100%;aspect-ratio:4/3;margin:10px 0 3px;border-radius:5px;background:#000;cursor:pointer;touch-action:manipulation}
+.display-top b{font-weight:600;letter-spacing:.6px;color:#5f7b48}
+.display-panel.emergency .display-top b{color:#a04b39}
+.under-controls{flex-wrap:wrap;gap:6px 10px}
+.serial-head{margin-top:16px;font-size:7px;letter-spacing:1.4px;color:#8a9c77}
+.serial-log{margin:6px 0 0;height:124px;overflow:auto;background:#12211b;color:#c7dbb9;border-radius:6px;padding:9px 10px;font:9.5px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word}

@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { drawHmi, HMI_W, HMI_H } from './hmi-screen.js';
 
-export function createScene(host, onSelect, onPanelAction) {
+export function createScene(host, onSelect, onPanelAction, onScreenTouch) {
   const scene = new THREE.Scene();
   scene.background=new THREE.Color('#e9eae3');
   const camera = new THREE.PerspectiveCamera(34, 1, .1, 100);
@@ -31,7 +32,7 @@ export function createScene(host, onSelect, onPanelAction) {
   function cyl(rt,rb,h,x,y,z,m=silver,p=model,id){return mesh(new THREE.CylinderGeometry(rt,rb,h,48,1,false),m,x,y,z,p,id);}
   function line(points,color,parent=model,r=.018){const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));return mesh(new THREE.TubeGeometry(curve,32,r,6,false),mat(color),0,0,0,parent);}
   function label(text,w,h,bg='#284d3d',fg='#eef4e6'){
-    const c=document.createElement('canvas'); c.width=512;c.height=128;const ctx=c.getContext('2d');ctx.fillStyle=bg;ctx.fillRect(0,0,512,128);ctx.font='600 60px Manrope, sans-serif';ctx.fillStyle=fg;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,256,66);
+    const c=document.createElement('canvas'); c.width=512;c.height=128;const ctx=c.getContext('2d');ctx.fillStyle=bg;ctx.fillRect(0,0,512,128);let size=60;ctx.font=`600 ${size}px Manrope, sans-serif`;while(ctx.measureText(text).width>488&&size>16){size-=2;ctx.font=`600 ${size}px Manrope, sans-serif`;}ctx.fillStyle=fg;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,256,66);
     const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
     return new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:t}));
   }
@@ -60,15 +61,15 @@ export function createScene(host, onSelect, onPanelAction) {
   for(const y of [1,4.8])cyl(.1,.1,.44,0,y,0,silver,doorPivot);
   const brand=label('VERDANT',1.5,.30,'#4e685b');brand.position.set(2,5,.061);doorPivot.add(brand);
   box(2.20,1.73,.16,2,3.91,.1,dark,doorPivot,'panel');
-  const lcd=document.createElement('canvas');lcd.width=768;lcd.height=576;const lcdctx=lcd.getContext('2d');const lcdtex=new THREE.CanvasTexture(lcd);lcdtex.colorSpace=THREE.SRGBColorSpace;
-  mesh(new THREE.PlaneGeometry(1.94,1.46),new THREE.MeshBasicMaterial({map:lcdtex}),2,3.91,.19,doorPivot,'panel');
+  const lcd=document.createElement('canvas');lcd.width=HMI_W*2;lcd.height=HMI_H*2;const lcdctx=lcd.getContext('2d');const lcdtex=new THREE.CanvasTexture(lcd);lcdtex.colorSpace=THREE.SRGBColorSpace;
+  const screenMesh=mesh(new THREE.PlaneGeometry(1.94,1.46),new THREE.MeshBasicMaterial({map:lcdtex}),2,3.91,.19,doorPivot,'panel');screenMesh.userData.screen=true;
   const panelButtons=[];
   function panelButton(x,y,color,action){const m=cyl(.16,.16,.14,x,y,.16,mat(color,.25,.35),doorPivot,'panel');m.rotation.x=Math.PI/2;m.userData.action=action;panelButtons.push(m);const ring=cyl(.20,.20,.04,x,y,.095,silver,doorPivot);ring.rotation.x=Math.PI/2;}
   panelButton(1.2,2.7,'#5fa06a','recipe0');panelButton(2,2.7,'#5fa06a','recipe1');panelButton(2.8,2.7,'#5fa06a','recipe2');
   panelButton(1.2,1.85,'#5fa06a','start');
   const ering=cyl(.3,.3,.06,2.85,1.85,.1,mat('#e5b834'),doorPivot);ering.rotation.x=Math.PI/2;
   panelButton(2.85,1.85,'#c64233','emergency');panelButtons.at(-1).scale.set(1.35,1.35,1.35);
-  const noTouch=label('4 GREEN BUTTONS + E-STOP',2.5,.15,'#4e685b','#cbd9c9');noTouch.position.set(2,1.2,.06);doorPivot.add(noTouch);
+  const noTouch=label('4 GREEN BUTTONS + LATCHING E-STOP',2.5,.15,'#4e685b','#cbd9c9');noTouch.position.set(2,1.2,.06);doorPivot.add(noTouch);
   const tankGroup=new THREE.Group();model.add(tankGroup);
   const tankColors=['#8aa77b','#d0a765','#7e9eaf']; const valves=[]; const hopperCenters=[];
   for(let i=0;i<3;i++){
@@ -135,8 +136,8 @@ export function createScene(host, onSelect, onPanelAction) {
   // Particle streams only exist while an individual dosing valve is open.
   const particles=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.037,0),mat('#bcb386'),50);scene.add(particles);particles.visible=false;
   const dummy=new THREE.Object3D();
-  let doorOpen=true, exploded=false, autoRotate=false, showLabels=true, lastPanel='';
-  let selected=null;let outline=null;let lastState={phase:'idle',weight:0,output:0,motor:false,valve:-1,batch:1,recipe:{ratio:[1,1,1]}};
+  let doorOpen=true, exploded=false, autoRotate=false, showLabels=true;
+  let selected=null;let outline=null;let lastState=null;
   const labelEls=Array.from(host.querySelectorAll('.model-label'));
   function resize(){const {width,height}=host.getBoundingClientRect();if(!width||!height)return;camera.aspect=width/height;camera.fov=THREE.MathUtils.radToDeg(2*Math.atan(Math.tan(THREE.MathUtils.degToRad(34)/2)/Math.min(1,camera.aspect/1.1)));camera.updateProjectionMatrix();renderer.setSize(width,height);}
   const observer=new ResizeObserver(resize);observer.observe(host);
@@ -150,20 +151,12 @@ export function createScene(host, onSelect, onPanelAction) {
     // Raycast all visible surfaces, so hidden controls cannot be clicked through the cabinet.
     const hits=raycaster.intersectObject(model,true).filter(h=>h.object.visible && h.object.isMesh && !h.object.material.transparent);
     const hit=hits[0]; if(!hit)return;
+    if(hit.object.userData.screen&&hit.uv&&onScreenTouch?.(hit.uv.x*HMI_W,(1-hit.uv.y)*HMI_H))return;
     if(hit.object.userData.action)onPanelAction(hit.object.userData.action);
     else if(hit.object.userData.id)onSelect(hit.object.userData.id);
   });
-  function updatePanel(s){const key=[s.phase,s.weight.toFixed(2),s.batch,s.recipe.ratio.join(':')].join('|');if(key===lastPanel)return;lastPanel=key;
-    lcdctx.fillStyle=s.phase==='emergency'?'#492622':'#102e25';lcdctx.fillRect(0,0,768,576);
-    lcdctx.fillStyle='#b7d6a7';lcdctx.font='24px Manrope';lcdctx.fillText('ESP32 DISPLAY  /  MIX CONTROL',35,48);
-    lcdctx.fillStyle='#f4f5cf';lcdctx.font='bold 62px Manrope';lcdctx.fillText(s.recipe.ratio.join(' : '),35,132);
-    lcdctx.font='22px Manrope';lcdctx.fillText(['N','P','K'].map((name,i)=>name+' '+s.targets[i].toFixed(3)+' kg').join('    '),38,174);
-    lcdctx.fillStyle='#92ab89';lcdctx.fillRect(35,204,695,2);
-    lcdctx.font='72px Manrope';lcdctx.fillStyle='#edf4df';lcdctx.fillText(s.weight.toFixed(3)+' kg',35,302);
-    const touchLabels=['สูตร','สถานะ','น้ำหนัก'];
-    touchLabels.forEach((text,i)=>{lcdctx.fillStyle=i===1?'#678b72':'#284b40';lcdctx.fillRect(35+i*225,350,200,70);lcdctx.fillStyle='#edf4df';lcdctx.font='25px IBM Plex Sans Thai';lcdctx.fillText(text,72+i*225,394);});
-    lcdctx.font='24px Manrope';lcdctx.fillStyle=s.phase==='emergency'?'#ffaf9c':'#b7d6a7';lcdctx.fillText(s.phase.toUpperCase()+'  /  BLUETOOTH',35,518);lcdtex.needsUpdate=true;
-  }
+  let lastPanelDraw=-1;
+  function updatePanel(s){const now=performance.now();if(now-lastPanelDraw<60)return;lastPanelDraw=now;drawHmi(lcdctx,s,2);lcdtex.needsUpdate=true;}
   function render(dt,s){if(!host.clientWidth)return;lastState=s;controls.autoRotate=autoRotate;controls.autoRotateSpeed=.7;controls.update();
     const ease=1-Math.exp(-dt*7);
     doorPivot.rotation.y+=((doorOpen?-2.05:0)-doorPivot.rotation.y)*ease;
@@ -173,10 +166,10 @@ export function createScene(host, onSelect, onPanelAction) {
     trayGroup.position.z+=((exploded?2.4:0)-trayGroup.position.z)*ease;
     shell.children.forEach(m=>{if(m.material===green)m.visible=!exploded;});
     if(s.motor)paddle.rotation.y+=dt*5;
-    valves.forEach((v,i)=>{v.rotation.y+=(((s.valve===i||i===3&&s.phase==='discharge')?Math.PI/2:0)-v.rotation.y)*ease;});
-    fillMix.scale.y=Math.max(.001,s.weight/s.batch*.58)/.01;fillMix.position.y=2.02+Math.max(.001,s.weight/s.batch*.58)/2;
-    trayFill.scale.y=Math.max(.001,s.output/s.batch*.38)/.01;trayFill.position.y=.26+Math.max(.001,s.output/s.batch*.38)/2;
-    particles.visible=s.valve>=0||s.phase==='discharge';
+    valves.forEach((v,i)=>{v.rotation.y+=(((s.valve===i||i===3&&s.releasing)?Math.PI/2:0)-v.rotation.y)*ease;});
+    fillMix.scale.y=Math.max(.001,s.fill*.58)/.01;fillMix.position.y=2.02+Math.max(.001,s.fill*.58)/2;
+    trayFill.scale.y=Math.max(.001,s.trayFill*.38)/.01;trayFill.position.y=.26+Math.max(.001,s.trayFill*.38)/2;
+    particles.visible=s.valve>=0||Boolean(s.releasing);
     if(particles.visible){const t=performance.now()/1000;for(let i=0;i<50;i++){const f=(t*1.5+i/50)%1;const v=s.valve;
       dummy.position.set(v>=0?(v-1)*1.13*(1-f*.7):-.28, v>=0?3.39-f*.6+(exploded?1:0):1.37-f*.72,exploded?(v>=0?f*1.8:1.8):0);dummy.position.x+=Math.sin(i*3.4)*.065;dummy.position.z+=Math.cos(i*2.5)*.06;dummy.updateMatrix();particles.setMatrixAt(i,dummy.matrix);}particles.instanceMatrix.needsUpdate=true;}
     updatePanel(s);

@@ -25,3 +25,10 @@ export const firmware = {
 
 // Studio-model component ids that map onto a firmware entry.
 export const componentFirmware = { panel: 'hmi', controller: 'esp' };
+
+// The code editor keeps edits in localStorage; the cabinet runs whatever is there.
+export const firmwareChangedEvent = 'verdant:firmware-changed';
+export function effectiveSource(id) {
+  try { return localStorage.getItem(`verdant:code:${id}`) ?? firmware[id].source; }
+  catch { return firmware[id].source; }
+}
