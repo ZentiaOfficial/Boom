@@ -2,3 +2,26 @@
 @media(max-width:1200px){.wiring-layout{grid-template-columns:minmax(0,1fr) 260px}.wiring-canvas{height:620px}.board-choice-grid{grid-template-columns:repeat(4,1fr)}}
 @media(max-width:900px){.wiring-summary{align-items:flex-start}.wiring-summary-stats{display:none}.wiring-filterbar{flex-direction:column}.wiring-layout{grid-template-columns:1fr}.wire-detail{min-height:auto}.wiring-canvas{height:580px}.board-choice-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:760px){.wiring-summary{padding:18px}.wiring-summary h2{font-size:17px}.wiring-alert{margin-top:10px}.wiring-filter-actions{width:100%}.wiring-filter-actions button{flex:1}.wiring-canvas{height:530px}.wiring-help{white-space:normal;width:90%;text-align:center}.board-strip{padding:16px}.board-strip-head>small{display:none}.board-choice-grid{grid-template-columns:1fr 1fr}.wire-table-card{padding:16px}.wire-table-head{align-items:flex-start;flex-direction:column;gap:13px}.wire-table-head label,.wire-table-head input{width:100%}.wire-table-scroll{max-height:450px}.wire-groups label{font-size:9px}.wire-detail{padding:18px}}
+
+/* Firmware code viewer / editor */
+dialog.code-dialog{width:min(1120px,calc(100% - 24px));height:min(860px,92vh);max-height:92vh;padding:22px 24px 18px;overflow:hidden}
+dialog.code-dialog[open]{display:flex;flex-direction:column;gap:12px}
+.code-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding-right:34px}
+.code-head h2{font-size:20px;margin:4px 0 2px}
+.code-head p{margin:0;font-size:11px;line-height:1.7}
+.code-tabs{display:flex;gap:8px;flex-wrap:wrap}
+.code-tabs button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 14px;border:1px solid #d8e0cc;border-radius:7px;background:#f4f7ec;font-size:11px;color:#5b7050;text-align:left}
+.code-tabs button small{font-size:9px;color:#93a184;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.code-tabs button.active{background:#294d3b;border-color:#294d3b;color:#eef4e2}
+.code-tabs button.active small{color:#b7ccaa}
+.code-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.code-toolbar button{display:flex;align-items:center;gap:6px;padding:7px 11px;border:1px solid #d8e0cc;border-radius:6px;background:#fafcf5;font-size:10px;color:#4f6a43}
+.code-toolbar button svg{width:13px;height:13px}
+.code-badge{margin-left:auto;font-size:9px;letter-spacing:.5px;color:#8a5a1c;background:#f7ead2;border:1px solid #e3c790;border-radius:4px;padding:3px 8px}
+#code-editor{flex:1;min-height:0;width:100%;resize:none;border:1px solid #1f3a30;border-radius:8px;background:#12211b;color:#dfe8d6;caret-color:#fff5ba;padding:14px 16px;font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;tab-size:2;white-space:pre;overflow:auto}
+#code-editor:focus-visible{outline:2px solid #9aae64;outline-offset:2px}
+#code-editor::selection{background:#4c7a3c}
+.code-status{display:flex;justify-content:space-between;gap:16px;font-size:10px;color:#8b9a7c;flex-wrap:wrap}
+.code-status span:first-child{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.wire-detail .open-code{width:100%;margin:14px 0 8px;display:flex;align-items:center;justify-content:center;gap:8px}
+@media(max-width:760px){dialog.code-dialog{padding:16px 14px 12px;height:94vh}.code-head p{display:none}#code-editor{font-size:11px}}

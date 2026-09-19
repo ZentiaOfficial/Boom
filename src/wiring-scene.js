@@ -23,7 +23,7 @@ export function createWiringScene(host,onSelect,onBoard){
    const color=b.kind==='esp'?'#254b3b':b.kind==='hmi'?'#315a66':b.kind==='boundary'?'#a97162':['power','cell','motor'].includes(b.kind)?'#73877d':b.kind==='servo'?'#416e83':b.kind==='stop'?'#a24c44':b.kind==='ic'?'#343f38':'#4c6f57';
    const body=cube(b.w,b.h,.19,0,0,0,mat(color),group);body.userData.board=b.id;pickable.push(body);
    for(const x of [-b.w/2+.12,b.w/2-.12])for(const y of [-b.h/2+.12,b.h/2-.12]){const screw=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,.04,12),white);screw.rotation.x=Math.PI/2;screw.position.set(x,y,.13);group.add(screw);}
-   const title=textPlane(b.id==='esp'?'ESP32 MAIN':b.name,b.w-.2,.27);title.position.set(0,b.h/2-.27,.15);group.add(title);
+   const title=textPlane(b.name,b.w-.2,.27);title.position.set(0,b.h/2-.27,.15);group.add(title);
    const subtitle=textPlane(b.model,b.w-.25,.16,'#bad0ae');subtitle.position.set(0,b.h/2-.53,.16);group.add(subtitle);
    if(b.kind==='esp'){
      cube(1.18,1.48,.16,0,1.65,.20,mat('#a5b4a7'),group);cube(1.18,.50,.10,0,2.65,.15,dark,group);
@@ -40,6 +40,7 @@ export function createWiringScene(host,onSelect,onBoard){
    else if(b.kind==='stop'){const cap=new THREE.Mesh(new THREE.CylinderGeometry(.38,.38,.3,24),mat('#d33a30'));cap.rotation.x=Math.PI/2;cap.position.set(0,-.25,.28);group.add(cap);}
    else if(b.kind==='boundary'){const t=textPlane('DESIGN REQUIRED',b.w-.4,.28,'#ffe4ce');t.position.set(0,-.30,.2);group.add(t);}
    else if(!['bus','capacitor','resistor'].includes(b.kind))cube(b.id==='buffer'?.58:.60,Math.min(.58,b.h/3),.12,0,-.2,.18,dark,group);
+   if(b.hasCode){const tag=textPlane('</>  คลิกเพื่อดู/แก้โค้ด',Math.min(b.w-.3,2.2),.2,'#fff5ba','#1f3a30');tag.position.set(0,-b.h/2+.14,.22);group.add(tag);}
    for(const [side,ports] of [['left',b.left],['right',b.right]])ports.forEach((p,i)=>{
      const x=side==='left'?-b.w/2-.075:b.w/2+.075;
      const top=b.kind==='esp'?b.h/2-.52:b.h/2-.80;

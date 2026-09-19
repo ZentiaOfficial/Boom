@@ -1,6 +1,8 @@
-# Verdant · Compact Fertilizer Studio V2
+# Verdant · Compact Fertilizer Studio
 
-เว็บ 3D Interactive ภาษาไทยสำหรับสำรวจกล่องผสมปุ๋ยอัตโนมัติ โดยรวมโมเดลเครื่อง การจำลองรอบผสม รายการอุปกรณ์ ผังระบบไฟ และตารางเดินสายแบบเลือกดูทีละวงจร
+เว็บ 3D Interactive ภาษาไทยสำหรับสำรวจกล่องผสมปุ๋ยอัตโนมัติ โดยรวมโมเดลเครื่อง การจำลองรอบผสม รายการอุปกรณ์ ตารางเดินสาย และ**โค้ดของ ESP32 ทั้งสองบอร์ดที่ดูและแก้ไขได้**
+
+อุปกรณ์และสายทั้งหมดในเว็บตรงกับตารางใน [Code_Board/README.md](Code_Board/README.md) (อุปกรณ์ที่ใช้จริง) อุปกรณ์อื่นที่ไม่อยู่ในตารางนั้นถูกนำออกแล้ว
 
 ## เปิดใช้งานในเครื่อง
 
@@ -9,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-เปิด http://127.0.0.1:4173 หรือใช้ production preview ที่ http://127.0.0.1:4174 เมื่อมี preview server ทำงาน
+เปิด http://127.0.0.1:4173
 
 ```sh
 npm test
@@ -19,63 +21,39 @@ npm run preview
 
 เว็บใช้ WebGL2 และไฟล์ทั้งหมดจากเครื่อง ไม่มี backend, login, analytics หรือการเชื่อมต่อฮาร์ดแวร์จริง
 
-## โครงสร้างระบบ V2
+## อุปกรณ์ (ตรงกับ Code_Board/README.md)
 
-ระบบใช้ ESP32 สองบอร์ดเพื่อให้ขาเพียงพอและแบ่งหน้าที่ชัดเจน
-
-1. **ESP32-2432S028R Touch HMI 2.8 นิ้ว** แสดงสูตร N-P-K น้ำหนัก ขั้นตอนและ Alarm รับส่งข้อมูลกับบอร์ดหลักผ่าน UART
-2. **ESP32-DevKitC V4 / WROOM-32E แบบ 38 ขา** เป็นตัวควบคุมเครื่องหลัก อ่าน Load Cell และปุ่ม ควบคุม PCA9685 กับ MD10C และอ่าน E-Stop feedback
-3. **PCA9685 module** สร้าง PWM สำหรับ MG996R 4 ตัวผ่าน I²C
-4. **Cytron MD10C R3** รับ PWM/DIR ระดับ 3.3V และขับ Motor DC 12V
-5. **Safety relay + คอนแทคเตอร์ K1** รับ E-Stop สองช่องและตัดไฟส่วน Motor/Servo ด้วยฮาร์ดแวร์
-
-แบบใหม่ไม่ใช้ LCD2004, BSS138, SN74AHCT125N, L298N หรือ Breadboard
+- ESP32 DevKit 38-pin × 1 — บอร์ดหลัก
+- ESP32-2432S028 จอสัมผัส 2.8" × 1 — thin client คุยกับบอร์ดหลักผ่าน Bluetooth
+- PCA9685 × 1 + Servo MG996R × 4 (ช่อง 0, 4, 8, 12)
+- มอเตอร์เกียร์ JGB37-520 12V RPM 100 × 1 + L298N × 1
+- ปุ่มกดเขียว 22mm × 4
+- ปุ่ม E-Stop แบบล็อก × 1 (NC ตัด 12V มอเตอร์, NO ต่อ GPIO27)
+- Load Cell + HX711 × 1 (calibration factor 200000)
+- XL4016 step-down (5V) × 1
+- แหล่งจ่ายไฟหลัก 12V × 1
 
 ## ขาหลักที่กำหนด
 
 | งาน | ขา |
 |---|---|
-| HMI TX → MAIN RX2 | HMI GPIO22 → MAIN GPIO16 |
-| MAIN TX2 → HMI RX | MAIN GPIO17 → HMI GPIO27 |
-| PCA9685 | MAIN GPIO21 SDA / GPIO22 SCL / GPIO27 OE |
-| HX711 | MAIN GPIO32 DAT / GPIO33 CLK |
-| MD10C | MAIN GPIO25 PWM / GPIO26 DIR |
-| ปุ่มสูตร 1/2/3 | MAIN GPIO13 / 14 / 18 |
-| ปุ่ม Start / Release | MAIN GPIO19 / 23 |
-| E-Stop feedback | MAIN GPIO34 + external pull-up 10kΩ |
+| จอ ↔ บอร์ดหลัก | Bluetooth SPP (ไม่มีสายสัญญาณ) |
+| PCA9685 | GPIO22 SDA / GPIO23 SCL |
+| L298N | GPIO18 IN1 / GPIO19 IN2 |
+| HX711 | GPIO16 DT / GPIO17 SCK |
+| ปุ่มเขียว 1/2/3 | GPIO32 / 33 / 25 |
+| ปุ่มเขียว 4 (ยืนยัน/ปล่อย) | GPIO26 |
+| E-Stop (ขา NO) | GPIO27 |
 
-## ระบบไฟและ E-Stop
+## โค้ดของอุปกรณ์ในเว็บ
 
-Power Supply 12V แบ่งเป็นสองทางหลัก
+กดที่ **ESP32 จอสัมผัส** หรือ **ESP32 38pin** ในหน้า “เดินสาย 3D” (หรือกดปุ่ม “ดู/แก้ไขโค้ด” ในรายละเอียดอุปกรณ์) จะเปิดตัวแก้ไขโค้ดของบอร์ดนั้น
 
-- ทางที่ไม่ผ่าน K1 ไป DC-DC 5V-CONTROL เลี้ยง ESP32 MAIN, ESP32 HMI และ HX711 จึงยังทำงานเมื่อกด E-Stop
-- ทางที่ผ่านหน้าสัมผัสหลัก K1 ไป MD10C และ DC-DC 5V-ACTUATOR สำหรับ Servo 4 ตัว กด E-Stop แล้วสองส่วนนี้ถูกตัดไฟ
-
-E-Stop ใช้หน้าสัมผัส NC สองชุดเข้า Safety relay และใช้ AUX-NC แยกสำหรับ GPIO34 ปกติ GPIO34 อ่าน LOW; เมื่อกด E-Stop หรือสาย feedback ขาดจะอ่าน HIGH การหยุดจริงต้องเกิดจาก Safety relay/K1 โดยไม่พึ่งโปรแกรม หลังปลด E-Stop ต้อง Manual Reset และกด Start ใหม่
-
-หมายเลขขา Safety relay และ K1 ในเว็บเป็นชื่อหน้าที่ เพราะต้องเลือกรุ่น แรงดัน coil พิกัดหน้าสัมผัส และรูปแบบ reset/EDM จากการประเมินความเสี่ยงกับโหลดจริงก่อน
-
-## รายการอุปกรณ์หลัก
-
-- ESP32-2432S028R Touch HMI 2.8 นิ้ว × 1
-- ESP32-DevKitC V4 / WROOM-32E 38 ขา × 1
-- ESP32 Screw Terminal Base 38 ขา × 1
-- PCA9685 module × 1
-- Servo MG996R × 4
-- Load Cell + HX711 × 1 ชุด
-- Cytron MD10C R3 × 1
-- Motor DC gear 12V × 1
-- Power Supply 12V × 1
-- DC-DC 12V→5V CONTROL × 1
-- DC-DC 12V→5V ACTUATOR กระแสสูง × 1
-- E-Stop แบบล็อกค้าง 2NC + AUX-NC × 1
-- Safety relay + DC-rated contactor K1 × อย่างละ 1
-- ปุ่มสูตร/Start/Release แบบ NO × 5 และ Manual Reset × 1
-- Terminal block, jumper, ฟิวส์สาขา และสายที่รองรับกระแส × 1 ชุด
-- ตัวต้านทาน 10kΩ และ 1kΩ × อย่างละ 1
-- ตู้ขนาดอ้างอิง 40 × 57 × 20 ซม. × 1
-
-พิกัด Power Supply, DC-DC ฝั่ง Servo, ฟิวส์, สาย, MD10C และ K1 ต้องคำนวณหลังทราบกระแส stall ของ Motor/Servo และแรงบิดที่เครื่องจริงต้องใช้
+- โค้ดอ่านตรงจาก `Code_Board/Arduino_IDE/` ตอน build จึงเป็นไฟล์เดียวกับที่ใช้จริง ไม่มีสำเนาซ้ำ
+- แก้ไขได้เลย และเก็บไว้ในเบราว์เซอร์เครื่องนั้น (localStorage) มีปุ่มคัดลอก ดาวน์โหลด `.ino` และคืนค่าต้นฉบับ ปุ่ม “ไปที่ค่า Calibrate” กระโดดไปที่ `CALIBRATION_OFFSET_G`
+- เว็บไม่มี backend การแก้ไขจึงไม่เปลี่ยนโค้ดในเครื่องอื่นและไม่ถูกอัปโหลดเข้าบอร์ดเอง ต้องคัดลอกไปอัปโหลดผ่าน Arduino IDE
+- ค่า Calibrate (`CALIBRATION_OFFSET_G`) ตั้งเป็น 0 ทั้งหมด (มี test ตรวจใน `tests/firmware.test.js`)
+- ต้อง commit โฟลเดอร์ `Code_Board/` ด้วย ไม่งั้น build บนเซิร์ฟเวอร์จะหาไฟล์ `.ino` ไม่เจอ
 
 ## ความสามารถของเว็บ
 
@@ -84,8 +62,8 @@ E-Stop ใช้หน้าสัมผัส NC สองชุดเข้า
 - จำลองจ่าย N → P → K, รอน้ำหนักนิ่ง, ผสม, รอกดปล่อย และปล่อยผลผลิต
 - จำลอง E-Stop แบบค้างสถานะจนกด Reset
 - หน้ารายการอุปกรณ์อธิบายหน้าที่ เงื่อนไข และจำนวน
-- หน้าเดินสาย 3D แสดงอุปกรณ์ 25 จุดและสายอ้างอิง 78 เส้น เลือกกลุ่ม กดสาย ค้นหา GPIO และส่งออก CSV
-- หน้าระบบแสดงสถาปัตยกรรม ESP32 สองบอร์ด ระบบไฟ E-Stop ตารางขา และรายการอุปกรณ์ฉบับรวม
+- หน้าเดินสาย 3D แสดงอุปกรณ์ 15 จุดและสาย 49 เส้น เลือกกลุ่ม กดสาย ค้นหา GPIO และส่งออก CSV กดที่ ESP32 เพื่อดู/แก้โค้ด
+- หน้าระบบแสดงสถาปัตยกรรม ESP32 สองบอร์ด เส้นทางไฟ 12V/5V E-Stop ตารางขา และรายการอุปกรณ์
 - ส่งออกผลการจำลองเป็น JSON
 
 ## ขอบเขต
@@ -94,20 +72,19 @@ E-Stop ใช้หน้าสัมผัส NC สองชุดเข้า
 
 N/P/K ในเว็บเป็นชื่อช่องวัตถุดิบ ไม่ใช่สารบริสุทธิ์และไม่ใช่เกรด N-P₂O₅-K₂O อัตราส่วน 1:1:1 จึงไม่เท่ากับปุ๋ย 15-15-15 จนกว่าจะมีผลวิเคราะห์วัตถุดิบจริง
 
-Servo ที่ถูกตัดไฟอาจไม่ทำให้วาล์วปิดเอง กลไกประตูต้องออกแบบให้เข้าสู่สภาวะปลอดภัยด้วยสปริง แรงโน้มถ่วง หรือกลไกที่เหมาะสม งาน AC, PE, E-Stop, Safety relay, K1 และวงจรกำลังต้องให้ผู้มีความชำนาญตรวจ
+Servo ที่ถูกตัดไฟอาจไม่ทำให้วาล์วปิดเอง กลไกประตูต้องออกแบบให้เข้าสู่สภาวะปลอดภัยด้วยสปริง แรงโน้มถ่วง หรือกลไกที่เหมาะสม งาน AC, PE, E-Stop และวงจรกำลังต้องให้ผู้มีความชำนาญตรวจ
 
 ## เอกสารอ้างอิง
 
-- [ESP32-2432S028R board reference](https://esp3d.io/esp3d-tft/version_1x/hardware/esp32/sunton-28-2432/)
-- [Espressif ESP32-DevKitC V4](https://documentation.espressif.com/esp-dev-kits/en/latest/esp32/esp32-devkitc/user_guide.html)
+- [ESP32-2432S028 board reference](https://esp3d.io/esp3d-tft/version_1x/hardware/esp32/sunton-28-2432/)
+- [Espressif ESP32-DevKitC](https://documentation.espressif.com/esp-dev-kits/en/latest/esp32/esp32-devkitc/user_guide.html)
 - [Adafruit PCA9685](https://learn.adafruit.com/16-channel-pwm-servo-driver?view=all)
 - [TowerPro MG996R](https://towerpro.com.tw/product/mg996R/)
 - [SparkFun HX711](https://learn.sparkfun.com/tutorials/load-cell-amplifier-hx711-breakout-hookup-guide/all)
-- [Cytron MD10C R3](https://docs.google.com/document/d/1rgQzn-nWn-qcWNnHjDZvIYqUrdCeBQQxXA-TU3BF0AQ/view)
-- [Pilz safety relay circuit example](https://www.pilz.com/download/open/PNOZ_X2_8P_Operat_Manual_1004082-EN-17.pdf)
+- [STMicroelectronics L298](https://www.st.com/resource/en/datasheet/l298.pdf)
 
 ดูผลตรวจล่าสุดใน [VALIDATION.md](VALIDATION.md)
 
 ## จำลองวงจรใน Wokwi
 
-ดู [wokwi/README.md](wokwi/README.md) สำหรับไฟล์จำลองวงจร ESP32 + PCA9685 + Servo + HX711 + ปุ่มกด ตามสายจริงใน `src/wiring-data.js` เท่าที่ Wokwi มีอุปกรณ์รองรับ พร้อมรายการสิ่งที่จำลองไม่ได้ (จอ HMI, motor driver, safety relay ฯลฯ)
+ดู [wokwi/README.md](wokwi/README.md) สำหรับไฟล์จำลองวงจร ESP32 + PCA9685 + Servo + HX711 + ปุ่มกด ตามสายจริงใน `src/wiring-data.js` เท่าที่ Wokwi มีอุปกรณ์รองรับ พร้อมรายการสิ่งที่จำลองไม่ได้ (จอ, L298N ฯลฯ) หมายเหตุ: ไฟล์ Wokwi ยังเป็นผังรุ่นเก่า ไม่ตรงกับ netlist ปัจจุบัน

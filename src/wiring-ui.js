@@ -4,14 +4,14 @@ import { boards, wires, groups, endpoint, connectionCSV, wiringSources } from '.
 const statusText={reference:'ระบุขาแล้ว',conditional:'ต้องตรวจอุปกรณ์จริง',unresolved:'ยังห้ามต่อจริง'};
 const statusClass={reference:'ok',conditional:'check',unresolved:'stop'};
 
-export function setupWiringPage(host,{icon,refreshIcons,notify}){
-  const mainBoards=['hmi','esp','pca','hx','driver','safe','k1'];
+export function setupWiringPage(host,{icon,refreshIcons,notify,openCode}){
+  const mainBoards=['esp','hmi','pca','hx','driver','xl','estop'];
   host.innerHTML=`
     <div class="wiring-summary">
-      <div><span class="eyebrow">REFERENCE NETLIST · ${wires.length} CONNECTIONS</span><h2>ESP32 Touch HMI + ESP32 Main Controller</h2><p>จอคุยกับบอร์ดหลักผ่าน UART · บอร์ดหลักควบคุม Servo, Load Cell, Motor และรับ E‑Stop feedback</p></div>
+      <div><span class="eyebrow">REFERENCE NETLIST · ${wires.length} CONNECTIONS</span><h2>ESP32 38pin + ESP32 Display</h2><p>จอคุยกับบอร์ดหลักผ่าน Bluetooth (ไม่มีสายสัญญาณ) · บอร์ดหลักควบคุม Servo, มอเตอร์ L298N, Load Cell, ปุ่ม และรับสถานะ E‑Stop · กดที่ ESP32 ทั้งสองตัวเพื่อดู/แก้โค้ด</p></div>
       <div class="wiring-summary-stats"><span><strong>2</strong> ESP32</span><span><strong>${boards.length}</strong> อุปกรณ์/จุดต่อ</span><span><strong>${wires.length}</strong> สายอ้างอิง</span></div>
     </div>
-    <div class="wiring-alert"><span>${icon('info')}</span><div><strong>E‑Stop ตัดเฉพาะไฟ Motor และ Servo ส่วน ESP32 ทั้งสองยังทำงาน</strong><p>GPIO34 ใช้รับสถานะเท่านั้น การหยุดจริงเกิดจาก E‑Stop สองช่อง → Safety relay → K1 ชื่อขาบน Safety relay/K1 ในฉากเป็นชื่อหน้าที่จนกว่าจะเลือกรุ่นจริง</p></div></div>
+    <div class="wiring-alert"><span>${icon('info')}</span><div><strong>E‑Stop ตัดไฟ 12V ของมอเตอร์ทางฮาร์ดแวร์ ไม่ต้องมี relay</strong><p>ขา NC อนุกรมกับ 12V ของ L298N ส่วนขา NO ต่อ GPIO27 ให้ซอฟต์แวร์หยุด Servo และขึ้นหน้า EMERGENCY STOP ข้อจำกัด: Servo ไม่มีฮาร์ดแวร์ตัดไฟ ถ้า ESP32 แครช Servo อาจค้างตำแหน่งเดิมจนกว่าจะรีเซ็ต</p></div></div>
     <div class="wiring-filterbar">
       <div class="wire-groups" role="group" aria-label="เลือกชุดสาย">${groups.map((g,i)=>`<label style="--wire-color:${g.color}"><input type="checkbox" data-wire-group="${g.id}" ${i===0?'checked':''}><span></span>${g.name}<small>${wires.filter(w=>w.group===g.id).length}</small></label>`).join('')}</div>
       <div class="wiring-filter-actions"><button id="wire-all">แสดงทั้งหมด</button><button id="wire-none">ซ่อนทั้งหมด</button><button id="wire-export">${icon('download')} CSV</button></div>
@@ -31,11 +31,11 @@ export function setupWiringPage(host,{icon,refreshIcons,notify}){
     <section class="sources-card wiring-sources"><span class="eyebrow">PINOUT SOURCES</span><div>${Object.values(wiringSources).map(([name,url])=>`<a href="${url}" target="_blank" rel="noopener noreferrer">${name}${icon('arrow-up-right')}</a>`).join('')}</div></section>`;
 
   refreshIcons();
-  const active=new Set(['uart']);
+  const active=new Set(['power']);
   let selected=null;
   const $=s=>host.querySelector(s);
   let scene;
-  try{scene=createWiringScene($('#wiring-canvas'),selectWire,showBoard);}catch(error){
+  try{scene=createWiringScene($('#wiring-canvas'),selectWire,id=>{showBoard(id);if(boards.find(b=>b.id===id)?.hasCode)openCode?.(id);});}catch(error){
     const notice=document.createElement('div');notice.className='webgl-error';notice.textContent='ไม่สามารถเปิดฉากเดินสาย 3D ได้ แต่ตารางสายด้านล่างยังใช้งานได้';$('#wiring-canvas').prepend(notice);console.error(error);
   }
 
@@ -66,8 +66,9 @@ export function setupWiringPage(host,{icon,refreshIcons,notify}){
   function showBoard(id){
     const b=boards.find(x=>x.id===id);if(!b)return;
     selected=null;scene?.select(null);
-    $('#wire-detail').innerHTML=`<div class="wire-detail-top"><span class="wire-number board">BOARD</span><span class="wire-status ${b.kind==='boundary'?'stop':'ok'}">${b.kind==='boundary'?'ต้องออกแบบต่อ':'รุ่นอ้างอิง'}</span></div><small>${b.model}</small><h2>${b.name}</h2><p>${b.notes}</p><div class="pin-mini-list">${[...b.left,...b.right].map(p=>`<button data-port-ref="${b.id}.${p.id}"><span>${p.id}</span>${p.name||p.label}</button>`).join('')}</div>${b.source?`<a class="outline-button board-source" href="${wiringSources[b.source][1]}" target="_blank" rel="noopener noreferrer">${icon('arrow-up-right')} เปิดเอกสาร pinout</a>`:''}`;
+    $('#wire-detail').innerHTML=`<div class="wire-detail-top"><span class="wire-number board">BOARD</span><span class="wire-status ok">${b.hasCode?'มีโค้ด':'รุ่นอ้างอิง'}</span></div><small>${b.model}</small><h2>${b.name}</h2><p>${b.notes}</p><div class="pin-mini-list">${[...b.left,...b.right].map(p=>`<button data-port-ref="${b.id}.${p.id}"><span>${p.id}</span>${p.name||p.label}</button>`).join('')}</div>${b.hasCode?`<button class="primary-button open-code" data-code-id="${b.id}">${icon('code')} ดู/แก้ไขโค้ดของบอร์ดนี้</button>`:''}${b.source?`<a class="outline-button board-source" href="${wiringSources[b.source][1]}" target="_blank" rel="noopener noreferrer">${icon('arrow-up-right')} เปิดเอกสาร pinout</a>`:''}`;
     refreshIcons();
+    $('#wire-detail').querySelectorAll('[data-code-id]').forEach(button=>button.onclick=()=>openCode?.(button.dataset.codeId));
     $('#wire-detail').querySelectorAll('[data-port-ref]').forEach(button=>button.onclick=()=>{const wire=wires.find(w=>active.has(w.group)&&(w.from===button.dataset.portRef||w.to===button.dataset.portRef));if(wire)selectWire(wire.id);else notify('ขานี้ไม่มีสายอยู่ในชุดวงจรที่กำลังแสดง');});
   }
   function sync(){selected=null;scene?.only(false);scene?.setVisible(visibleWires().map(w=>w.id));renderRows();renderDetail();}
